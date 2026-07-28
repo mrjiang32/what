@@ -4,18 +4,13 @@ import { fileURLToPath, pathToFileURL } from "url";
 
 import logger from "../utils/logger.js";
 import utils from "../utils/utils.js";
+import keyInfo from "./keyInfo.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SCANDIR = path.resolve(__dirname, "./jobs");
 
 await logger.init();
-
-const allowedKeys = {
-  init: "初始化任务",
-  stop: "停机任务",
-  timer: "定时任务",
-};
 
 const allowedFileExts = [".js", ".mjs", ".cjs"];
 const jobLog = logger.newLogger("Job Control");
@@ -26,6 +21,7 @@ const neededEnvironment = {
   allowedExts: allowedFileExts,
   grayText,
   log: jobLog,
+  keyInfo,
 };
 
 async function scanJobs({
@@ -41,13 +37,13 @@ async function scanJobs({
     scanDir = rootScanDir;
   }
   // 基础入参类型校验
-  if (typeof scanDir !== "string") throw new Error("scanDir 必须为字符串路径");
+  if (typeof scanDir !== "string") throw new Error("扫描目录路径必须为字符串");
   if (!Array.isArray(allowedExts))
-    throw new Error("allowedExts 必须为后缀数组");
+    throw new Error("允许的文件后缀必须为数组格式");
   if (maxDepth <= 0) return [];
 
   if (scanDir === rootScanDir) {
-    log.debug(`扫描 "${scanDir}" 以获取 Job`);
+    log.debug(`正在扫描目录 "${scanDir}" 加载任务文件`);
   }
   const extSet = new Set(allowedExts);
   let dirEntries;
@@ -55,30 +51,28 @@ async function scanJobs({
   try {
     dirEntries = await fs.readdir(scanDir, { withFileTypes: true });
   } catch (scanErr) {
-    log.error(`任务目录 "${scanDir}"扫描失败：`, scanErr.message);
-    throw new Error(`扫描Job目录异常: ${scanErr.message}`);
+    log.error(`任务目录 "${scanDir}" 扫描失败：`, scanErr.message);
+    throw new Error(`扫描任务目录发生异常: ${scanErr.message}`);
   }
 
   // 1. 筛选当前目录合法文件
   const currentDirFiles = dirEntries
     .filter((entry) => {
       const ext = path.extname(entry.name);
-      // 普通文件 + 后缀白名单 + 非隐藏文件
       return entry.isFile() && extSet.has(ext) && !entry.name.startsWith(".");
     })
     .map((entry) => path.join(path.relative(rootScanDir, scanDir), entry.name));
 
-  // 打印当前目录扫描到的文件日志
-  currentDirFiles.forEach((name) => log.debug(grayText(name)));
+  // 打印扫描到的文件
+  currentDirFiles.forEach((name) => log.debug(grayText(`${name}`)));
 
-  // 2. 筛选合法子目录（过滤黑名单、隐藏文件夹）
+  // 2. 筛选合法子目录
   const childDirs = dirEntries.filter((entry) => {
     if (!entry.isDirectory()) return false;
-    // 过滤隐藏目录、黑名单目录
     return !entry.name.startsWith(".") && !dirBlackList.includes(entry.name);
   });
 
-  // 3. 递归扫描子目录，传递完整参数、递减深度限制
+  // 3. 递归扫描子目录
   const childScanPromises = childDirs.map((entry) => {
     const childFullPath = path.join(scanDir, entry.name);
     return scanJobs({
@@ -92,30 +86,106 @@ async function scanJobs({
     });
   });
 
-  // 等待所有子目录扫描完成，扁平化二维数组
   const childDirFilesList = await Promise.all(childScanPromises);
   const allChildFiles = childDirFilesList.flat();
 
-  // 合并当前目录 + 子目录文件，并去重
   const allFiles = [...new Set([...currentDirFiles, ...allChildFiles])];
 
   return allFiles;
 }
 
-async function importJobs({ validFileNames, grayText, log, rootScanDir }) {
-  let importedJobs = {};
-
-  for (const value of validFileNames) {
-    let eachJob = await import(pathToFileURL(path.join(rootScanDir, value)));
-    eachJob = eachJob.default ?? eachJob;
-    importJobs = { ...importJobs, ...eachJob };
+function validateSingleJob(fileName, jobKey, jobItem, keyInfo, log) {
+  // 1. 任务配置为空
+  if (!jobItem) {
+    log.error(`文件："${fileName}" 内任务 "${jobKey}" 配置为空`);
+    return false;
   }
-  return importJobs;
+
+  const jobType = jobItem.type;
+  // 2. 缺少type任务类型字段
+  if (!jobType) {
+    log.error(
+      `文件："${fileName}" 内任务 "${jobKey}" 缺少必填字段 type（任务类型）`,
+    );
+    return false;
+  }
+
+  const typeRule = keyInfo[jobType];
+  // 3. 不存在该任务类型定义
+  if (!typeRule) {
+    log.error(
+      `文件："${fileName}" 内任务 "${jobKey}" 使用了未注册的任务类型：${jobType}`,
+    );
+    return false;
+  }
+
+  const requiredFields = typeRule.requiredKeys;
+  let validatePass = true;
+
+  // 4. 遍历校验所有必填字段
+  for (const [fieldName, expectType] of Object.entries(requiredFields)) {
+    const fieldValue = jobItem[fieldName];
+    // 字段缺失
+    if (fieldValue === undefined) {
+      log.error(
+        `文件："${fileName}" 任务 "${jobKey}" 缺失必填配置项 "${fieldName}"，要求数据类型：${expectType}`,
+      );
+      validatePass = false;
+      continue;
+    }
+    // 字段类型不匹配
+    if (typeof fieldValue !== expectType) {
+      log.error(
+        `文件："${fileName}" 任务 "${jobKey}" 配置项 "${fieldName}" 类型不匹配。期望类型：${expectType}，实际类型：${typeof fieldValue}`,
+      );
+      validatePass = false;
+    }
+  }
+
+  return validatePass;
 }
 
-importJobs({
-  validFileNames: await scanJobs(neededEnvironment),
-  ...neededEnvironment,
-}).then((value) => {
-  console.log(Object.keys(value));
-});
+async function importJobs({
+  validFileNames,
+  grayText,
+  log,
+  rootScanDir,
+  keyInfo,
+}) {
+  const importedJobs = {};
+
+  for (const fileName of validFileNames) {
+    try {
+      const filePath = path.join(rootScanDir, fileName);
+      const fileUrl = pathToFileURL(filePath);
+      let eachJobModule = await import(fileUrl);
+      const eachJob = eachJobModule.default ?? eachJobModule;
+
+      let validJobs = {};
+
+      for (const [jobKey, jobItem] of Object.entries(eachJob)) {
+        if (validateSingleJob(fileName, jobKey, jobItem, keyInfo, log)) {
+          validJobs[jobKey] = jobItem;
+        } else {
+          log.warn(`任务 "${jobKey}" 校验失败，已丢弃`);
+        }
+      }
+
+      // 只合并校验通过的任务，修复之前bug
+      Object.assign(importedJobs, validJobs);
+    } catch (err) {
+      log.error(`导入任务文件 "${fileName}" 失败：`, err.message);
+    }
+  }
+
+  return importedJobs;
+}
+
+export default {
+  jobImport: async () => {
+    return await importJobs({
+      validFileNames: await scanJobs(neededEnvironment),
+      ...neededEnvironment,
+    });
+  },
+};
