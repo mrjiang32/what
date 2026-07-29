@@ -6,12 +6,12 @@ import logger from "../utils/logger.js";
 import utils from "../utils/utils.js";
 import keyInfo from "./keyInfo.js";
 
+let debug = false;
+// await logger.init();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SCANDIR = path.resolve(__dirname, "./jobs");
-
-await logger.init();
-
 const allowedFileExts = [".js", ".mjs", ".cjs"];
 const jobLog = logger.newLogger("Job Control");
 const grayText = utils.grayText;
@@ -22,6 +22,7 @@ const neededEnvironment = {
   grayText,
   log: jobLog,
   keyInfo,
+  timerMap: new Map(),
 };
 
 async function scanJobs({
@@ -152,7 +153,8 @@ async function importJobs({
   rootScanDir,
   keyInfo,
 }) {
-  const importedJobs = {};
+  const jobs = {};
+  Object.keys(keyInfo).forEach((key) => (jobs[key] = []));
 
   for (const fileName of validFileNames) {
     try {
@@ -161,31 +163,56 @@ async function importJobs({
       let eachJobModule = await import(fileUrl);
       const eachJob = eachJobModule.default ?? eachJobModule;
 
-      let validJobs = {};
-
       for (const [jobKey, jobItem] of Object.entries(eachJob)) {
         if (validateSingleJob(fileName, jobKey, jobItem, keyInfo, log)) {
-          validJobs[jobKey] = jobItem;
+          jobItem.name = jobKey;
+          jobs[jobItem.type].push(jobItem);
         } else {
           log.warn(`任务 "${jobKey}" 校验失败，已丢弃`);
         }
       }
-
-      // 只合并校验通过的任务，修复之前bug
-      Object.assign(importedJobs, validJobs);
     } catch (err) {
       log.error(`导入任务文件 "${fileName}" 失败：`, err.message);
     }
   }
 
-  return importedJobs;
+  return jobs;
+}
+
+async function processJobs(neededEnvironment) {
+  const { keyInfo, jobs, timerMap } = neededEnvironment;
+  Object.keys(keyInfo).forEach((key) => {
+    const jobArray = jobs[key];
+    if (jobArray.length === 0) {
+      return;
+    }
+
+    const { comparePriority, processMethod } = keyInfo[key];
+    if (comparePriority) {
+      jobArray.sort(comparePriority);
+    }
+
+    jobArray.forEach((value) => {
+      processMethod(value, neededEnvironment, timerMap);
+    });
+  });
+  return jobs;
+}
+
+const getJobs = async () => {
+  return await processJobs({
+    jobs: await importJobs({
+      validFileNames: await scanJobs(neededEnvironment),
+      ...neededEnvironment,
+    }),
+    ...neededEnvironment,
+  });
+};
+
+if (debug) {
+  console.log(await getJobs());
 }
 
 export default {
-  jobImport: async () => {
-    return await importJobs({
-      validFileNames: await scanJobs(neededEnvironment),
-      ...neededEnvironment,
-    });
-  },
+  getJobs,
 };
