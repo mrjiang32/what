@@ -1,4 +1,4 @@
-import SafeEventEmitter, { bus } from "../class/SafeEventEmitter.js";
+import { bus } from "../class/SafeEventEmitter.js";
 
 export default {
   init: {
@@ -20,6 +20,25 @@ export default {
       });
     },
   },
+  initParallel: {
+    name: "[并行] 初始化任务",
+    requiredKeys: {
+      allowContext: "boolean",
+      job: "function",
+      priority: "number",
+    },
+    comparePriority: (jobA, jobB) => {
+      if (jobA.priority > jobB.priority) return -1;
+      if (jobA.priority < jobB.priority) return 1;
+      return 0;
+    },
+    processMethod: (jobItem, globalCtx) => {
+      bus.on("system:init.parallel", async () => {
+        const ctx = jobItem.allowContext ? globalCtx : null;
+        await jobItem.job(ctx);
+      });
+    },
+  },
   stop: {
     name: "停机任务",
     requiredKeys: {
@@ -34,6 +53,25 @@ export default {
     },
     processMethod: (jobItem, globalCtx) => {
       bus.on("system:stop", async () => {
+        const ctx = jobItem.allowContext ? globalCtx : null;
+        await jobItem.job(ctx);
+      });
+    },
+  },
+  stopParallel: {
+    name: "[并行] 停机任务",
+    requiredKeys: {
+      allowContext: "boolean",
+      job: "function",
+      priority: "number",
+    },
+    comparePriority: (jobA, jobB) => {
+      if (jobA.priority > jobB.priority) return -1;
+      if (jobA.priority < jobB.priority) return 1;
+      return 0;
+    },
+    processMethod: (jobItem, globalCtx) => {
+      bus.on("system:stop.parallel", async () => {
         const ctx = jobItem.allowContext ? globalCtx : null;
         await jobItem.job(ctx);
       });

@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "url";
 import logger from "../utils/logger.js";
 import utils from "../utils/utils.js";
 import keyInfo from "./keyInfo.js";
+import SafeEventEmitter, { bus } from "../class/SafeEventEmitter.js";
 
 let debug = false;
 // await logger.init();
@@ -214,5 +215,15 @@ if (debug) {
 }
 
 export default {
-  getJobs,
+  init: async function init() {
+    return await getJobs();
+  },
+  emitInit: async function init() {
+    bus.emitSafeParallel("system:init.parallel")
+    bus.emitSafe("system:init");
+  },
+  emitStop: async function stop() {
+    bus.emitSafeParallel("system:stop.parallel");
+    bus.emitSafe("system:stop")
+  },
 };
