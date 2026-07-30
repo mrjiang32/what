@@ -6,6 +6,7 @@ import logger from "../utils/logger.js";
 import utils from "../utils/utils.js";
 import keyInfo from "./keyInfo.js";
 import SafeEventEmitter, { bus } from "../class/SafeEventEmitter.js";
+import neededEnvironment from "./neededEnvironment.js"
 
 let debug = false;
 // await logger.init();
@@ -17,7 +18,7 @@ const allowedFileExts = [".js", ".mjs", ".cjs"];
 const jobLog = logger.newLogger("Job Control");
 const grayText = utils.grayText;
 
-const neededEnvironment = {
+neededEnvironment = {
   rootScanDir: SCANDIR,
   allowedExts: allowedFileExts,
   grayText,
@@ -215,15 +216,21 @@ if (debug) {
 }
 
 export default {
-  init: async function init() {
-    return await getJobs();
-  },
+  init: async () => getJobs(),
+
   emitInit: async function init() {
-    bus.emitSafeParallel("system:init.parallel")
-    bus.emitSafe("system:init");
+    await bus.emitSafeParallel("system:init.parallel", neededEnvironment);
+    await bus.emitSafe("system:init", neededEnvironment);
   },
+
   emitStop: async function stop() {
-    bus.emitSafeParallel("system:stop.parallel");
-    bus.emitSafe("system:stop")
+    await bus.emitSafe("system:stop", neededEnvironment);
+    await bus.emitSafeParallel("system:stop.parallel", neededEnvironment);
   },
+
+  modifyContext: (key, value) => {
+    neededEnvironment[key] = value;
+  },
+
+  neededEnvironment,
 };

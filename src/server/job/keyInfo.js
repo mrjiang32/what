@@ -103,4 +103,26 @@ export default {
       timerMap.set(jobItem, tid);
     },
   },
+  expressMiddleWare: {
+    name: "Express 中间件",
+    requiredKeys: {
+      job: "function",
+      priority: "number",
+    },
+    comparePriority: (jobA, jobB) => {
+      if (jobA.priority > jobB.priority) return -1;
+      if (jobA.priority < jobB.priority) return 1;
+      return 0;
+    },
+    processMethod: (jobItem, globalCtx) => {
+      if (jobItem.allowContext === true) {
+        globalCtx.app.use((...args) => {
+          args.push(globalCtx);
+          return jobItem.job(...args);
+        });
+      } else {
+        globalCtx.app.use(jobItem.job);
+      }
+    },
+  },
 };
