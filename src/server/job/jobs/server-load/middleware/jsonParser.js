@@ -27,11 +27,11 @@ export default {
         next();
       });
     },
-    proirity: 85,
+    priority: 85,
   },
   bodyUrlDecode: {
     type: "expressMiddleWare",
     job: bodyParser.urlencoded({ extended: true }),
-    proirity: 80,
+    priority: 80,
   },
 };

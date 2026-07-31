@@ -6,7 +6,7 @@ import logger from "../utils/logger.js";
 import utils from "../utils/utils.js";
 import keyInfo from "./keyInfo.js";
 import SafeEventEmitter, { bus } from "../class/SafeEventEmitter.js";
-import neededEnvironment from "./neededEnvironment.js"
+import neededEnvironment, { addContext } from "./neededEnvironment.js";
 
 let debug = false;
 // await logger.init();
@@ -18,14 +18,14 @@ const allowedFileExts = [".js", ".mjs", ".cjs"];
 const jobLog = logger.newLogger("Job Control");
 const grayText = utils.grayText;
 
-neededEnvironment = {
+addContext({
   rootScanDir: SCANDIR,
   allowedExts: allowedFileExts,
   grayText,
   log: jobLog,
   keyInfo,
   timerMap: new Map(),
-};
+});
 
 async function scanJobs({
   scanDir,
@@ -219,8 +219,8 @@ export default {
   init: async () => getJobs(),
 
   emitInit: async function init() {
-    await bus.emitSafeParallel("system:init.parallel", neededEnvironment);
     await bus.emitSafe("system:init", neededEnvironment);
+    await bus.emitSafeParallel("system:init.parallel", neededEnvironment);
   },
 
   emitStop: async function stop() {
