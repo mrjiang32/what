@@ -1,4 +1,4 @@
-import neededEnvironment from "../neededEnvironment.js";
+import neededEnvironment from "../global/neededEnvironment.js";
 
 export default {
   bindRequestContext: {

@@ -1,7 +1,7 @@
 import express from "express";
 import chalk from "chalk";
-import nedenv,{ modifyContext } from "./job/neededEnvironment.js";
-import jobs from "./job/jobs.js";
+import nedenv,{ modifyContext } from "./global/neededEnvironment.js";
+import jobs from "./utils/jobs.js";
 import logger from "./utils/logger.js";
 
 const app = express();

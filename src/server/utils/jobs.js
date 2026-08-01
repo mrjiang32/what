@@ -2,11 +2,11 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 
-import logger from "../utils/logger.js";
-import utils from "../utils/utils.js";
-import keyInfo from "./keyInfo.js";
-import SafeEventEmitter, { bus } from "../class/SafeEventEmitter.js";
-import neededEnvironment, { addContext } from "./neededEnvironment.js";
+import logger from "./logger.js";
+import utils from "./utils.js";
+import keyInfo from "../global/keyInfo.js";
+import SafeEventEmitter, { bus } from "../classes/SafeEventEmitter.js";
+import neededEnvironment, { addContext } from "../global/neededEnvironment.js";
 
 let debug = false;
 // await logger.init();

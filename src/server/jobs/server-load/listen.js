@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import utils from "../../../utils/utils.js";
+import utils from "../../utils/utils.js";
 
 export default {
   banner: {

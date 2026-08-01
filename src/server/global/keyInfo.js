@@ -1,4 +1,4 @@
-import { bus } from "../class/SafeEventEmitter.js";
+import { bus } from "../classes/SafeEventEmitter.js";
 
 export default {
   init: {

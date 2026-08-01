@@ -1,6 +1,6 @@
 import chalk from "chalk";
-import conf from "../../../utils/config.js";
-import utils from "../../../utils/utils.js";
+import conf from "../../utils/config.js";
+import utils from "../../utils/utils.js";
 
 const grayText = utils.grayText;
 
