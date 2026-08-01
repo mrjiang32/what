@@ -6,7 +6,7 @@ import logger from "./logger.js";
 import utils from "./utils.js";
 import keyInfo from "../global/keyInfo.js";
 import SafeEventEmitter, { bus } from "../classes/SafeEventEmitter.js";
-import neededEnvironment, { addContext } from "../global/neededEnvironment.js";
+import neededEnvironment, { addContext } from "../global/globalenv.js";
 
 let debug = false;
 // await logger.init();
@@ -46,7 +46,7 @@ async function scanJobs({
   if (maxDepth <= 0) return [];
 
   if (scanDir === rootScanDir) {
-    log.debug(`正在扫描目录 "${scanDir}" 加载任务文件`);
+    log.info(`正在扫描目录 "${scanDir}" 加载任务文件`);
   }
   const extSet = new Set(allowedExts);
   let dirEntries;
@@ -67,7 +67,7 @@ async function scanJobs({
     .map((entry) => path.join(path.relative(rootScanDir, scanDir), entry.name));
 
   // 打印扫描到的文件
-  currentDirFiles.forEach((name) => log.debug(grayText(`${name}`)));
+  currentDirFiles.forEach((name) => log.info(grayText(`${name}`)));
 
   // 2. 筛选合法子目录
   const childDirs = dirEntries.filter((entry) => {

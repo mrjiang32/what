@@ -6,9 +6,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CONFIG_PATH = path.resolve(__dirname, "config.json");
 
-function readConfigFile() {
+function readConfigFile({ configpath } = { configpath: CONFIG_PATH }) {
   try {
-    const raw = fs.readFileSync(CONFIG_PATH, "utf8");
+    const raw = fs.readFileSync(configpath, "utf8");
     return raw ? JSON.parse(raw) : {};
   } catch (err) {
     if (err.code === "ENOENT") {
@@ -18,17 +18,19 @@ function readConfigFile() {
   }
 }
 
-function writeConfigFile(cfg) {
-  const configDir = path.dirname(CONFIG_PATH);
+function writeConfigFile(cfg, { configpath } = { configpath: CONFIG_PATH }) {
+  const configDir = path.dirname(configpath);
   if (!fs.existsSync(configDir)) {
     fs.mkdirSync(configDir, { recursive: true });
   }
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), "utf8");
+  fs.writeFileSync(configpath, JSON.stringify(cfg, null, 2), "utf8");
 }
 
-async function readConfigFileAsync() {
+async function readConfigFileAsync(
+  { configpath } = { configpath: CONFIG_PATH },
+) {
   try {
-    const raw = await fs.promises.readFile(CONFIG_PATH, "utf8");
+    const raw = await fs.promises.readFile(configpath, "utf8");
     return raw ? JSON.parse(raw) : {};
   } catch (err) {
     if (err.code === "ENOENT") {
@@ -38,29 +40,24 @@ async function readConfigFileAsync() {
   }
 }
 
-async function writeConfigFileAsync(cfg) {
-  const configDir = path.dirname(CONFIG_PATH);
+async function writeConfigFileAsync(
+  cfg,
+  { configpath } = { configpath: CONFIG_PATH },
+) {
+  const configDir = path.dirname(configpath);
   await fs.promises.mkdir(configDir, { recursive: true });
-  await fs.promises.writeFile(
-    CONFIG_PATH,
-    JSON.stringify(cfg, null, 2),
-    "utf8",
-  );
+  await fs.promises.writeFile(configpath, JSON.stringify(cfg, null, 2), "utf8");
 }
 
-// A standard server configuration file for the server. This file is used to configure various settings for the server, such as the port number, database connection details, and other server-specific options.
-// Be like:
+// The DEFAULT config of it
 const configData = Object.freeze({
   server: {
     port: 3000,
-    host: "127.0.0.1",
-    // Add other server-specific configurations here
+    host: "0.0.0.0",
   },
-  date: Date.now(),
-  db: {
-    name: "example",
-    uri: "mongodb://admin:admin@localhost:27017/?authSource=admin",
-  },
+  createdDate: Date.now(),
+  eula: false,
+  logLevel: "info",
 });
 
 // Read config.

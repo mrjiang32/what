@@ -12,14 +12,14 @@ export default {
           ctx.config.server.port,
           () => {
             ctx.log.info(
-              `LIS   服务器监听 ${chalk.blueBright(
+              `LISTEN 服务器监听 ${chalk.blueBright(
                 "http://" +
                   ctx.config.server.host +
                   ":" +
                   ctx.config.server.port,
               )}`,
             );
-            ctx.log.info("LIS" + utils.grayText("使用ctrl+鼠标左键在浏览器中打开."));
+            ctx.log.info("LISTEN " + utils.grayText("使用ctrl+鼠标左键在浏览器中打开."));
             resolve(httpServer);
           },
         );

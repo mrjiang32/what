@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import logger from "../utils/logger.js";
 
-const busLog = logger.newLogger("SafeEventEmitter");
+const busLog = logger.newLogger("SEventEmitter");
 
 export class SafeEventEmitter extends EventEmitter {
   /**

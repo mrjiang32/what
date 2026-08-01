@@ -5,7 +5,8 @@ export default {
   jsonParser: {
     type: "expressMiddleWare",
     job: (req, res, next) => {
-      const middleWareLog = res.$ctx.log;
+      // console.log(req.$ctx);
+      const middleWareLog = req.$ctx.log;
       jsonParser(req, res, (err) => {
         if (err) {
           if (err.type === "entity.parse.failed") {

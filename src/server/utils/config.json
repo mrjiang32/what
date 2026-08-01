@@ -1,20 +1,9 @@
 {
   "server": {
     "port": 3000,
-    "host": "127.0.0.1"
+    "host": "0.0.0.0"
   },
-  "date": 1784961206379,
-  "db": {
-    "name": "example",
-    "uri": "mongodb://admin:admin@localhost:27017/?authSource=admin"
-  },
-  "injection": {
-    "stop": {
-      "tellTime": {
-        "job": "()=>console.log(Date.now())"
-      }
-    }
-  },
-  "runTime": 276599,
-  "logLevel": "debug"
+  "createdDate": 1785562289945,
+  "eula": true,
+  "logLevel": "info"
 }

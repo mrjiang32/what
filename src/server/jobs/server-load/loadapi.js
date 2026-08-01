@@ -6,10 +6,10 @@ export default {
   insertAPIRoutes: {
     type: "init",
     job: ({ app, log }) => {
-      log.info("API   开始导入API路由");
+      log.info("API    开始导入API路由");
       api.forEach((route) => {
         app[route.method.toLowerCase()](route.path, route.handler);
-        log.info("API " + utils.grayText(route.method + "  " + route.path));
+        log.info("API  " + utils.grayText(route.method + "  " + route.path));
       });
     },
     allowContext: true,
