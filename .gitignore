@@ -6,6 +6,8 @@ jspm_packages/
 dist/
 build/
 out/
+logs/
+.uploads/
 
 # Logs
 npm-debug.log*
@@ -13,6 +15,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# config data
+src/server/utils/*.json
 
 # Runtime data
 pids/

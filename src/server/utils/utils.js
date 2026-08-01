@@ -1,4 +1,6 @@
 import chalk from "chalk";
+import fs from "fs/promises";
+import path from "path";
 
 export default {
   formatTime: (ms) => {
@@ -16,8 +18,29 @@ export default {
 
     return parts.join(" ");
   },
-  grayText: (text) => (chalk.gray(`\t- ${text}`)),
-  autoMainText: (text) => {
-    
-  }
+  grayText: (text) => chalk.gray(`\t- ${text}`),
+  /**
+   * 简易读取独立JSON文件（不合并主默认配置）
+   * @param {string} filePath
+   * @returns {Promise<object>}
+   */
+  jsonSimpleR: async function readSimpleJson(filePath) {
+    try {
+      const buf = await fs.readFile(filePath, "utf8");
+      return JSON.parse(buf);
+    } catch (err) {
+      // 文件不存在 / 损坏 返回空对象
+      return {};
+    }
+  },
+
+  /**
+   * 简易写入独立JSON文件
+   * @param {string} filePath
+   * @param {object} data
+   */
+  jsonSimpleW: async function writeSimpleJson(filePath, data) {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf8");
+  },
 };
