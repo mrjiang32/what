@@ -13,7 +13,7 @@ let debug = false;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const SCANDIR = path.resolve(__dirname, "./jobs");
+const SCANDIR = path.resolve(__dirname, "../jobs");
 const allowedFileExts = [".js", ".mjs", ".cjs"];
 const jobLog = logger.newLogger("Job Control");
 const grayText = utils.grayText;
