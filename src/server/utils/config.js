@@ -1,7 +1,7 @@
 import fs from "fs";
 import fsPromises from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -128,7 +128,11 @@ async function writeConfigFileAsync(cfg, configpath = CONFIG_PATH) {
   try {
     const configDir = path.dirname(configpath);
     await fsPromises.mkdir(configDir, { recursive: true });
-    await fsPromises.writeFile(configpath, JSON.stringify(cfg, null, 2), "utf8");
+    await fsPromises.writeFile(
+      configpath,
+      JSON.stringify(cfg, null, 2),
+      "utf8",
+    );
   } finally {
     writingLock = false;
   }
@@ -207,6 +211,13 @@ export default Object.freeze({
    * 默认配置文件完整路径
    * @type {string}
    */
+  createFile: async () => {
+    try {
+      await fsPromises.access(CONFIG_PATH, fs.constants.R_OK | fs.constants.W_OK);
+    } catch (e) {
+      await saveConfigAsync({});
+    }
+  },
   configFilePath: CONFIG_PATH,
   /**
    * 默认配置模板

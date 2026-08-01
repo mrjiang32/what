@@ -16,6 +16,7 @@ export default {
         "CONFIG " +
           grayText(`从"${chalk.blueBright(conf.configFilePath)}"读取配置文件`),
       );
+      await conf.createFile();
       try {
         ctx.config = await conf.readConfigAsync();
         log.info("CONFIG " + grayText(`配置文件读取成功`));

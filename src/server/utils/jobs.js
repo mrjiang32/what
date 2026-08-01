@@ -30,9 +30,9 @@ addContext({
 async function scanJobs({
   scanDir,
   rootScanDir,
-  allowedExts,
-  log,
-  grayText,
+  allowedExts = [".js", ".mjs", ".cjs"],
+  log = undefined,
+  grayText = () => undefined,
   maxDepth = 10,
   dirBlackList = ["node_modules", ".git", "dist", "build"],
 }) {
@@ -46,7 +46,7 @@ async function scanJobs({
   if (maxDepth <= 0) return [];
 
   if (scanDir === rootScanDir) {
-    log.info(`正在扫描目录 "${scanDir}" 加载任务文件`);
+    log?.info(`正在扫描目录 "${scanDir}" 加载任务文件`);
   }
   const extSet = new Set(allowedExts);
   let dirEntries;
@@ -54,7 +54,7 @@ async function scanJobs({
   try {
     dirEntries = await fs.readdir(scanDir, { withFileTypes: true });
   } catch (scanErr) {
-    log.error(`任务目录 "${scanDir}" 扫描失败：`, scanErr.message);
+    log?.error(`任务目录 "${scanDir}" 扫描失败：`, scanErr.message);
     throw new Error(`扫描任务目录发生异常: ${scanErr.message}`);
   }
 
@@ -67,7 +67,7 @@ async function scanJobs({
     .map((entry) => path.join(path.relative(rootScanDir, scanDir), entry.name));
 
   // 打印扫描到的文件
-  currentDirFiles.forEach((name) => log.info(grayText(`${name}`)));
+  currentDirFiles.forEach((name) => log?.info(grayText(`${name}`)));
 
   // 2. 筛选合法子目录
   const childDirs = dirEntries.filter((entry) => {
@@ -233,4 +233,10 @@ export default {
   },
 
   neededEnvironment,
+
+  internalMethods: {
+    scanJobs,
+    processJobs,
+    importJobs,
+  },
 };

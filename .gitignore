@@ -18,7 +18,9 @@ lerna-debug.log*
 
 # config data
 src/server/utils/*.json
-src/server/jobs/custom
+
+# npm lock file
+package-lock.json
 
 # Runtime data
 pids/
