@@ -48,4 +48,12 @@ export default {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, data, "utf8");
   },
+
+  deleteFile: async function deleteFile(filePath) {
+    try {
+      await fs.unlink(filePath);
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+    }
+  },
 };

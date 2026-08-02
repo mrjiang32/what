@@ -1,7 +1,7 @@
 import pickModule from "./pickModule.js";
+import hookAPI from "./hook.api.js";
 
 const startTime = Date.now();
-const modules = await pickModule.scanModules()
 
 const rootpage = {
   path: "/api",
@@ -10,14 +10,17 @@ const rootpage = {
     res.json({
       running: true,
       uptime: Date.now() - startTime,
-      modules
+      modules,
     });
   },
 };
 
-const hookapi = [];
+const hookapi = hookAPI.generate();
 const actionapi = [];
 
-export default function generate() {
-  return [rootpage].concat(hookapi, actionapi);
-}
+export default {
+  generate: async () => {
+    await pickModule.updateAll();
+    return [rootpage].concat(hookapi, actionapi);
+  },
+};

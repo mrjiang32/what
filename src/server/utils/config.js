@@ -56,7 +56,7 @@ function deepMerge(base, override) {
 const DEFAULT_CONFIG = deepFreeze({
   server: {
     port: 3000,
-    host: "0.0.0.0",
+    host: "127.0.0.1",
   },
   createdDate: Date.now(),
   eula: false,
@@ -139,28 +139,6 @@ async function writeConfigFileAsync(cfg, configpath = CONFIG_PATH) {
 }
 
 /**
- * 同步读取合并后的完整配置
- * @param {string} [configpath=CONFIG_PATH] 配置文件路径
- * @returns {typeof DEFAULT_CONFIG} 合并默认值后的完整配置
- */
-function readConfig(configpath = CONFIG_PATH) {
-  const userCfg = readConfigFileSync(configpath);
-  return deepMerge(DEFAULT_CONFIG, userCfg);
-}
-
-/**
- * 同步保存配置，自动合并默认配置
- * @param {object} cfg 需要更新的配置片段
- * @param {string} [configpath=CONFIG_PATH] 配置文件路径
- * @returns {typeof DEFAULT_CONFIG} 合并完成的完整配置
- */
-function saveConfig(cfg, configpath = CONFIG_PATH) {
-  const merged = deepMerge(DEFAULT_CONFIG, cfg);
-  writeConfigFileSync(merged, configpath);
-  return merged;
-}
-
-/**
  * 异步读取合并后的完整配置
  * @param {string} [configpath=CONFIG_PATH] 配置文件路径
  * @returns {Promise<typeof DEFAULT_CONFIG>} 合并默认值后的完整配置
@@ -187,16 +165,6 @@ async function saveConfigAsync(cfg, configpath = CONFIG_PATH) {
  * @namespace ConfigManager
  */
 export default Object.freeze({
-  /**
-   * 同步读取配置
-   * @type {typeof readConfig}
-   */
-  readConfig,
-  /**
-   * 同步保存配置
-   * @type {typeof saveConfig}
-   */
-  saveConfig,
   /**
    * 异步读取配置（推荐使用）
    * @type {typeof readConfigAsync}

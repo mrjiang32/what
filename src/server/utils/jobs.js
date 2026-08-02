@@ -38,6 +38,7 @@ async function scanJobs({
 }) {
   if (!scanDir) {
     scanDir = rootScanDir;
+    log?.info(`正在扫描目录 "${scanDir}" 加载任务文件`);
   }
   // 基础入参类型校验
   if (typeof scanDir !== "string") throw new Error("扫描目录路径必须为字符串");
@@ -45,9 +46,6 @@ async function scanJobs({
     throw new Error("允许的文件后缀必须为数组格式");
   if (maxDepth <= 0) return [];
 
-  if (scanDir === rootScanDir) {
-    log?.info(`正在扫描目录 "${scanDir}" 加载任务文件`);
-  }
   const extSet = new Set(allowedExts);
   let dirEntries;
 
@@ -67,7 +65,10 @@ async function scanJobs({
     .map((entry) => path.join(path.relative(rootScanDir, scanDir), entry.name));
 
   // 打印扫描到的文件
-  currentDirFiles.forEach((name) => log?.info(grayText(`${name}`)));
+  currentDirFiles.forEach((name) => {
+    const text = grayText(`${name}`)
+    log?.info(text);
+  });
 
   // 2. 筛选合法子目录
   const childDirs = dirEntries.filter((entry) => {
