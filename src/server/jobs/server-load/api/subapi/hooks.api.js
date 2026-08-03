@@ -17,10 +17,12 @@ export default {
           }
 
           await pickModule.writeModule({
-            name,
+            name: name + ".json",
             type: "hooks",
             code: { name, bindedActionIds, description, friendlyName },
           });
+
+          await pickModule.updateIndex({ name: type + "\\" + name + ".json" });
 
           return res.status(200).json({
             ok: true,
@@ -31,6 +33,8 @@ export default {
           });
         },
       },
-    ].concat(commonApi.generate("hooks"));
+    ].concat(commonApi.generate({type: "hooks", ext: "json", execfunc: ({req, res, module, param}) => {
+      
+    }}));
   },
 };

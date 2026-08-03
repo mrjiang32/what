@@ -1,6 +1,6 @@
 import express from "express";
 import chalk from "chalk";
-import nedenv,{ modifyContext } from "./global/globalenv.js";
+import nedenv, { modifyContext } from "./global/globalenv.js";
 import jobs from "./utils/jobs.js";
 import logger from "./utils/logger.js";
 
@@ -12,16 +12,8 @@ const log = logger.newLogger("Launcher");
 const accessLog = logger.newLogger("Access");
 
 const shutdown = (signal) => {
-  log.info(`${chalk.red(signal)}`);
-  const shutdownFunction = async () => {
-    await jobs.emitStop();
-    process.exit(0);
-  };
-  if (nedenv.server?.close) {
-    nedenv.server.close(shutdownFunction);
-  } else {
-    shutdownFunction();
-  }
+  log.info(`Received ${chalk.red(signal)}`);
+  jobs.emitStop();
 };
 
 process.on("SIGINT", () => shutdown("SIGINT"));

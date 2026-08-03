@@ -34,7 +34,7 @@ async function scanJobs({
   log = undefined,
   grayText = () => undefined,
   maxDepth = 10,
-  dirBlackList = ["node_modules", ".git", "dist", "build"],
+  dirBlackList = ["node_modules", ".git", "dist", "build", "api"],
 }) {
   if (!scanDir) {
     scanDir = rootScanDir;
@@ -225,8 +225,8 @@ export default {
   },
 
   emitStop: async function stop() {
-    await bus.emitSafe("system:stop", neededEnvironment);
     await bus.emitSafeParallel("system:stop.parallel", neededEnvironment);
+    await bus.emitSafe("system:stop", neededEnvironment);
   },
 
   modifyContext: (key, value) => {

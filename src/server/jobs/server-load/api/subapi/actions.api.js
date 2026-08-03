@@ -55,6 +55,6 @@ export default {
           }
         },
       },
-    ].concat(commonApi.generate("actions"));
+    ].concat(commonApi.generate("actions", "js"));
   },
 };

@@ -1,17 +1,15 @@
 import pickModule from "./pickModule.js";
 import { parse } from "acorn";
 
-
-
 export default {
-  generate: (apiType) => {
+  generate: ({ apiType, ext, execfunc }) => {
     return [
       {
         path: new RegExp(`^/api/${apiType}/([a-zA-Z0-9_]+)$`),
         method: "GET",
         handler: (req, res) => {
           const actionName = req.path.split("/").pop();
-          if (!pickModule.moduleSet.has(`${apiType}\\${actionName}.js`)) {
+          if (!pickModule.moduleSet.has(`${apiType}\\${actionName}.${ext}`)) {
             return res.status(404).json({
               error: `${apiType}API模块不存在`,
               ok: false,
@@ -22,7 +20,7 @@ export default {
             .json(
               pickModule.loadAModule({
                 type: apiType,
-                name: `${actionName}.js`,
+                name: `${actionName}.${ext}`,
               }),
             );
         },
@@ -32,7 +30,7 @@ export default {
         method: "POST",
         handler: (req, res) => {
           const actionName = req.path.split("/").pop();
-          if (!pickModule.moduleSet.has(`${apiType}\\${actionName}.js`)) {
+          if (!pickModule.moduleSet.has(`${apiType}\\${actionName}.${ext}`)) {
             return res.status(404).json({
               error: `${apiType}API模块不存在`,
               ok: false,
@@ -41,9 +39,9 @@ export default {
           const params = req.body;
           const module = pickModule.loadAModule({
             type: apiType,
-            name: `${actionName}.js`,
+            name: `${actionName}.${ext}`,
           });
-          return res.json(module.exec(params));
+          return res.json(execfunc({ req, res, module, params }));
         },
       },
       {

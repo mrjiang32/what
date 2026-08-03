@@ -10,7 +10,7 @@ const rootpage = {
     res.json({
       running: true,
       uptime: Date.now() - startTime,
-      modules,
+      ok: true,
     });
   },
 };

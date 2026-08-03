@@ -2,8 +2,52 @@ import chalk from "chalk";
 import fs from "fs/promises";
 import path from "path";
 
+/**
+ * 深度冻结对象，防止配置被意外篡改
+ * @param {object} obj 目标对象
+ * @returns {object} 冻结后的对象
+ */
+function deepFreeze(obj) {
+  const propNames = Reflect.ownKeys(obj);
+  for (const name of propNames) {
+    const value = obj[name];
+    if (value && typeof value === "object") deepFreeze(value);
+  }
+  return Object.freeze(obj);
+}
+
+/**
+ * 深度合并对象配置
+ * 修复原生扩展运算符只能一级合并、嵌套对象丢失字段问题
+ * @param {object} base 基础默认配置
+ * @param {object} override 用户自定义配置
+ * @returns {object} 合并后的全新配置对象
+ */
+function deepMerge(base, override) {
+  const result = { ...base };
+  for (const key in override) {
+    const baseVal = result[key];
+    const overVal = override[key];
+    if (
+      typeof baseVal === "object" &&
+      baseVal !== null &&
+      !Array.isArray(baseVal) &&
+      typeof overVal === "object" &&
+      overVal !== null &&
+      !Array.isArray(overVal)
+    ) {
+      result[key] = deepMerge(baseVal, overVal);
+    } else {
+      result[key] = overVal;
+    }
+  }
+  return result;
+}
+
 export default {
-  formatTime: (ms) => {
+  deepFreeze,
+  deepMerge,
+  formatTime: (ms, locale = "zh-cn") => {
     const totalSeconds = Math.floor(ms / 1000);
     const days = Math.floor(totalSeconds / 86400);
     const hours = Math.floor((totalSeconds % 86400) / 3600);
@@ -11,10 +55,17 @@ export default {
     const seconds = totalSeconds % 60;
 
     const parts = [];
-    if (days > 0) parts.push(`${days} day${days === 1 ? "" : "s"}`);
-    if (hours > 0) parts.push(`${hours} hour${hours === 1 ? "" : "s"}`);
-    if (minutes > 0) parts.push(`${minutes} min`);
-    if (seconds > 0 || parts.length === 0) parts.push(`${seconds} sec`);
+    if (locale === "en-us") {
+      if (days > 0) parts.push(`${days} day${days === 1 ? "" : "s"}`);
+      if (hours > 0) parts.push(`${hours} hour${hours === 1 ? "" : "s"}`);
+      if (minutes > 0) parts.push(`${minutes} min`);
+      if (seconds > 0 || parts.length === 0) parts.push(`${seconds} sec`);
+    } else if (locale === "zh-cn") {
+            if (days > 0) parts.push(`${days} 天`);
+      if (hours > 0) parts.push(`${hours} 小时`);
+      if (minutes > 0) parts.push(`${minutes} 分钟`);
+      if (seconds > 0 || parts.length === 0) parts.push(`${seconds} 秒`);
+    }
 
     return parts.join(" ");
   },
