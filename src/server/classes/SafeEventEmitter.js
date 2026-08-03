@@ -19,7 +19,10 @@ export class SafeEventEmitter extends EventEmitter {
       try {
         await fn(...args);
       } catch (err) {
-        busLog.error(`事件[${eventName}] 执行异常：`, err);
+        busLog.error(
+          `事件[${eventName}] 执行异常：`,
+          err instanceof Error ? err.stack : err
+        );
       }
     }
   }

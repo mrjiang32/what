@@ -65,10 +65,10 @@ async function scanJobs({
     .map((entry) => path.join(path.relative(rootScanDir, scanDir), entry.name));
 
   // 打印扫描到的文件
-  currentDirFiles.forEach((name) => {
-    const text = grayText(`${name}`)
+  for (const file of currentDirFiles) {
+    const text = await grayText(file);
     log?.info(text);
-  });
+  }
 
   // 2. 筛选合法子目录
   const childDirs = dirEntries.filter((entry) => {

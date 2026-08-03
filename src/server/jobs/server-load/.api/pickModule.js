@@ -11,18 +11,15 @@ const SCANDIR = path.join(__dirname, "modules");
 const moduleSet = new Set();
 const moduleCacheSet = new Set();
 
-const scanModules = async (eachCb = undefined) => {
-  console.log("API模块扫描中...");
+const scanModules = async (scandir = SCANDIR, eachCb) => {
   return await jobs.internalMethods.scanJobs({
-    rootScanDir: SCANDIR,
-    grayText: updateIndex,
-    // log: logger.newLogger("1"),
-    // grayText: (e) => e,
+    rootScanDir: scandir,
+    grayText: eachCb,
+    allowedExts: [".js", ".json"],
   });
 };
 
-const updateIndex = (name) => {
-  console.log("API模块索引更新: " + name);
+const updateIndex = ({ name }) => {
   if (!moduleSet.has(name)) {
     moduleSet.add(name);
   } else {
@@ -30,19 +27,26 @@ const updateIndex = (name) => {
   }
 };
 
-const updateCache = (name, type) => {
-  moduleCacheSet.delete(name + "\\" + type);
+const updateCache = ({ name, type }) => {
+  moduleCacheSet.delete(type + "\\" + name);
 };
 
-const updateAll = async () => {
-  await scanModules(updateIndex);
+const updateAll = async ({ scanDir = SCANDIR }) => {
+  await scanModules(scanDir, (name) => {
+    return updateIndex({ name });
+  });
 };
 
 export default {
   scanModules,
-  createModule: async ({ name, type, code }) => {
+  writeModule: async ({ name, type, code }) => {
     const spath = path.join(SCANDIR, type, name);
-    await utils.jsSimpleW(spath, code);
+    if(name.endsWith(".js")){
+      await utils.jsSimpleW(spath, code);
+    }
+    if(name.endsWith(".json")){
+      await utils.jsonSimpleW(spath, code);
+    }
   },
   removeModule: async ({ name, type }) => {
     const scanDirpath = path.join(SCANDIR, type, name);
@@ -53,11 +57,20 @@ export default {
       return moduleCacheSet.get(name + "\\" + type);
     }
     const spath = path.join(SCANDIR, type, name);
-    const module = await import(pathToFileURL(spath).href);
+    let module = undefined;
+    if (name.endsWith(".js")) {
+      module = await import(pathToFileURL(spath).href);
+    } else if (name.endsWith(".json")) {
+      module = await utils.jsonSimpleR(spath);
+    }
     moduleCacheSet.set(name + "\\" + type, module);
     return module;
+  },
+  loadAModuleGeneric: async (path) => {
+    return await import(pathToFileURL(path).href);
   },
   updateAll,
   updateIndex,
   moduleSet,
+  apiDir: __dirname,
 };

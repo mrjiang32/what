@@ -1,5 +1,5 @@
 import pickModule from "./pickModule.js";
-import hookAPI from "./hook.api.js";
+import path from "path";
 
 const startTime = Date.now();
 
@@ -15,12 +15,15 @@ const rootpage = {
   },
 };
 
-const hookapi = hookAPI.generate();
-const actionapi = [];
-
 export default {
   generate: async () => {
-    await pickModule.updateAll();
-    return [rootpage].concat(hookapi, actionapi);
+    let subapis = [];
+    await pickModule.scanModules(path.join(pickModule.apiDir, "subapi"), async (name) => {
+      subapis.push(await pickModule.loadAModuleGeneric(path.join(pickModule.apiDir, "subapi", name)));
+    });
+    const generatedRoutes = await Promise.all(subapis.map((subapi) => subapi.default.generate()));
+
+    await pickModule.updateAll({})
+    return [rootpage, ...generatedRoutes.flat()];
   },
 };

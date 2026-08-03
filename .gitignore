@@ -19,6 +19,11 @@ lerna-debug.log*
 # config data
 src/server/utils/*.json
 
+# hooks
+src/server/jobs/server-load/.api/modules/hooks/
+# actions
+src/server/jobs/server-load/.api/modules/actions/
+
 # npm lock file
 package-lock.json
 
