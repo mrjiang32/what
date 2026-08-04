@@ -61,7 +61,7 @@ export default {
       if (minutes > 0) parts.push(`${minutes} min`);
       if (seconds > 0 || parts.length === 0) parts.push(`${seconds} sec`);
     } else if (locale === "zh-cn") {
-            if (days > 0) parts.push(`${days} 天`);
+      if (days > 0) parts.push(`${days} 天`);
       if (hours > 0) parts.push(`${hours} 小时`);
       if (minutes > 0) parts.push(`${minutes} 分钟`);
       if (seconds > 0 || parts.length === 0) parts.push(`${seconds} 秒`);
@@ -98,6 +98,11 @@ export default {
   jsSimpleW: async function writeSimpleJs(filePath, data) {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, data, "utf8");
+  },
+
+  jsSimpleR: async function readSimpleJs(filePath) {
+    const buf = await fs.readFile(filePath, "utf8");
+    return buf;
   },
 
   deleteFile: async function deleteFile(filePath) {

@@ -1,112 +1,39 @@
-import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath, pathToFileURL } from "url";
+import { fileURLToPath } from "url";
 
 import logger from "./logger.js";
 import utils from "./utils.js";
 import keyInfo from "../global/keyInfo.js";
 import SafeEventEmitter, { bus } from "../classes/SafeEventEmitter.js";
 import neededEnvironment, { addContext } from "../global/globalenv.js";
+import NativeImportLoader from "../classes/modules/NativeImportLoader.js";
 
 let debug = false;
-// await logger.init();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SCANDIR = path.resolve(__dirname, "../jobs");
-const allowedFileExts = [".js", ".mjs", ".cjs"];
 const jobLog = logger.newLogger("Job Control");
 const grayText = utils.grayText;
 
 addContext({
   rootScanDir: SCANDIR,
-  allowedExts: allowedFileExts,
   grayText,
   log: jobLog,
   keyInfo,
   timerMap: new Map(),
 });
 
-async function scanJobs({
-  scanDir,
-  rootScanDir,
-  allowedExts = [".js", ".mjs", ".cjs"],
-  log = undefined,
-  grayText = () => undefined,
-  maxDepth = 10,
-  dirBlackList = ["node_modules", ".git", "dist", "build", "api"],
-}) {
-  if (!scanDir) {
-    scanDir = rootScanDir;
-    log?.info(`正在扫描目录 "${scanDir}" 加载任务文件`);
-  }
-  // 基础入参类型校验
-  if (typeof scanDir !== "string") throw new Error("扫描目录路径必须为字符串");
-  if (!Array.isArray(allowedExts))
-    throw new Error("允许的文件后缀必须为数组格式");
-  if (maxDepth <= 0) return [];
-
-  const extSet = new Set(allowedExts);
-  let dirEntries;
-
-  try {
-    dirEntries = await fs.readdir(scanDir, { withFileTypes: true });
-  } catch (scanErr) {
-    log?.error(`任务目录 "${scanDir}" 扫描失败：`, scanErr.message);
-    throw new Error(`扫描任务目录发生异常: ${scanErr.message}`);
-  }
-
-  // 1. 筛选当前目录合法文件
-  const currentDirFiles = dirEntries
-    .filter((entry) => {
-      const ext = path.extname(entry.name);
-      return entry.isFile() && extSet.has(ext) && !entry.name.startsWith(".");
-    })
-    .map((entry) => path.join(path.relative(rootScanDir, scanDir), entry.name));
-
-  // 打印扫描到的文件
-  for (const file of currentDirFiles) {
-    const text = await grayText(file);
-    log?.info(text);
-  }
-
-  // 2. 筛选合法子目录
-  const childDirs = dirEntries.filter((entry) => {
-    if (!entry.isDirectory()) return false;
-    return !entry.name.startsWith(".") && !dirBlackList.includes(entry.name);
-  });
-
-  // 3. 递归扫描子目录
-  const childScanPromises = childDirs.map((entry) => {
-    const childFullPath = path.join(scanDir, entry.name);
-    return scanJobs({
-      scanDir: childFullPath,
-      allowedExts,
-      log,
-      grayText,
-      maxDepth: maxDepth - 1,
-      dirBlackList,
-      rootScanDir,
-    });
-  });
-
-  const childDirFilesList = await Promise.all(childScanPromises);
-  const allChildFiles = childDirFilesList.flat();
-
-  const allFiles = [...new Set([...currentDirFiles, ...allChildFiles])];
-
-  return allFiles;
-}
+const jobLoader = new NativeImportLoader(SCANDIR);
+jobLoader.scanConfig.allowedExts = [".js", ".mjs", ".cjs"];
 
 function validateSingleJob(fileName, jobKey, jobItem, keyInfo, log) {
-  // 1. 任务配置为空
   if (!jobItem) {
     log.error(`文件："${fileName}" 内任务 "${jobKey}" 配置为空`);
     return false;
   }
 
   const jobType = jobItem.type;
-  // 2. 缺少type任务类型字段
   if (!jobType) {
     log.error(
       `文件："${fileName}" 内任务 "${jobKey}" 缺少必填字段 type（任务类型）`,
@@ -115,7 +42,6 @@ function validateSingleJob(fileName, jobKey, jobItem, keyInfo, log) {
   }
 
   const typeRule = keyInfo[jobType];
-  // 3. 不存在该任务类型定义
   if (!typeRule) {
     log.error(
       `文件："${fileName}" 内任务 "${jobKey}" 使用了未注册的任务类型：${jobType}`,
@@ -126,10 +52,8 @@ function validateSingleJob(fileName, jobKey, jobItem, keyInfo, log) {
   const requiredFields = typeRule.requiredKeys;
   let validatePass = true;
 
-  // 4. 遍历校验所有必填字段
   for (const [fieldName, expectType] of Object.entries(requiredFields)) {
     const fieldValue = jobItem[fieldName];
-    // 字段缺失
     if (fieldValue === undefined) {
       log.error(
         `文件："${fileName}" 任务 "${jobKey}" 缺失必填配置项 "${fieldName}"，要求数据类型：${expectType}`,
@@ -137,7 +61,6 @@ function validateSingleJob(fileName, jobKey, jobItem, keyInfo, log) {
       validatePass = false;
       continue;
     }
-    // 字段类型不匹配
     if (typeof fieldValue !== expectType) {
       log.error(
         `文件："${fileName}" 任务 "${jobKey}" 配置项 "${fieldName}" 类型不匹配。期望类型：${expectType}，实际类型：${typeof fieldValue}`,
@@ -149,36 +72,33 @@ function validateSingleJob(fileName, jobKey, jobItem, keyInfo, log) {
   return validatePass;
 }
 
-async function importJobs({
-  validFileNames,
-  grayText,
-  log,
-  rootScanDir,
-  keyInfo,
-}) {
+/**
+ * 适配新版 Loader：直接使用 relPath，不再拆分 type/name
+ */
+async function importJobs() {
   const jobs = {};
   Object.keys(keyInfo).forEach((key) => (jobs[key] = []));
 
-  for (const fileName of validFileNames) {
+  const entries = await jobLoader.scanModules();
+  for (const entry of entries) {
+    const relPath = entry.relPath;
     try {
-      const filePath = path.join(rootScanDir, fileName);
-      const fileUrl = pathToFileURL(filePath);
-      let eachJobModule = await import(fileUrl);
-      const eachJob = eachJobModule.default ?? eachJobModule;
+      // 新版 loader 直接传相对路径字符串
+      const module = await jobLoader.loadAModule(relPath);
+      const eachJob = module.default ?? module;
 
       for (const [jobKey, jobItem] of Object.entries(eachJob)) {
-        if (validateSingleJob(fileName, jobKey, jobItem, keyInfo, log)) {
+        if (validateSingleJob(relPath, jobKey, jobItem, keyInfo, jobLog)) {
           jobItem.name = jobKey;
           jobs[jobItem.type].push(jobItem);
         } else {
-          log.warn(`任务 "${jobKey}" 校验失败，已丢弃`);
+          jobLog.warn(`任务 "${jobKey}" 校验失败，已丢弃`);
         }
       }
     } catch (err) {
-      log.error(`导入任务文件 "${fileName}" 失败：`, err.message);
+      jobLog.error(`导入任务文件 "${relPath}" 失败：`, err.message);
     }
   }
-
   return jobs;
 }
 
@@ -203,11 +123,9 @@ async function processJobs(neededEnvironment) {
 }
 
 const getJobs = async () => {
+  await jobLoader.updateAll();
   return await processJobs({
-    jobs: await importJobs({
-      validFileNames: await scanJobs(neededEnvironment),
-      ...neededEnvironment,
-    }),
+    jobs: await importJobs(),
     ...neededEnvironment,
   });
 };
@@ -234,10 +152,5 @@ export default {
   },
 
   neededEnvironment,
-
-  internalMethods: {
-    scanJobs,
-    processJobs,
-    importJobs,
-  },
+  jobLoader,
 };

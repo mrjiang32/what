@@ -1,4 +1,4 @@
-import api from "./api/api.js";
+import api from "../../api/api.js";
 import chalk from "chalk";
 import utils from "../../utils/utils.js";
 

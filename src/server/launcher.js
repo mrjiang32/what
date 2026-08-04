@@ -3,9 +3,15 @@ import chalk from "chalk";
 import nedenv, { modifyContext } from "./global/globalenv.js";
 import jobs from "./utils/jobs.js";
 import logger from "./utils/logger.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const app = express();
-modifyContext("app", app);
+modifyContext("startTime", Date.now());
+modifyContext("app", express());
+modifyContext(
+  "relDirRoot",
+  path.resolve(path.dirname(fileURLToPath(import.meta.url))),
+);
 
 await logger.init();
 const log = logger.newLogger("Launcher");
