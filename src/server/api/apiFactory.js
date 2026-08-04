@@ -11,11 +11,12 @@ import path from "path";
  * @param {boolean} options.validateSyntax 是否校验JS语法（仅js文件生效）
  * @returns {Array<object>} 路由数组
  */
-export function createModuleRoutes({
+export async function createModuleRoutes({
   apiPrefix,
   dirPrefix,
   fileExt,
   loader,
+  exec,
   validateSyntax = false,
 }) {
   // 工具：从URL参数名 → 完整 relPath
@@ -24,16 +25,35 @@ export function createModuleRoutes({
   // 工具：名称合法性校验（防路径穿越）
   const isValidName = (name) => /^[a-zA-Z0-9_-]+$/.test(name);
 
+  await loader?.updateAll();
+
   return [
     // GET 列表：列出所有模块
     {
       path: apiPrefix,
       method: "GET",
       handler: (req, res) => {
-        res.status(200).json({
-          ok: true,
-          modules: loader.getModuleList(),
-        });
+        const method = () => {
+          res.status(200).json({
+            ok: true,
+            modules: loader.getModuleList(),
+          });
+        }
+        method();
+      },
+    },
+
+    {
+      path: apiPrefix + "-update",
+      method: "GET",
+      handler: (req, res) => {
+        const method = () => {
+          res.status(200).json({
+            ok: true,
+            modules: loader.getModuleList(),
+          });
+        }
+        loader.updateAll().then(method);
       },
     },
 
@@ -54,7 +74,30 @@ export function createModuleRoutes({
 
         try {
           const mod = await loader.loadAModule(relPath);
-          res.status(200).json({ ok: true, data: mod });
+          res.status(200).json({ ok: true, code: mod });
+        } catch (err) {
+          res.status(500).json({ ok: false, error: err.message });
+        }
+      },
+    },
+
+    {
+      path: new RegExp(`^${apiPrefix}/([a-zA-Z0-9_-]+)$`),
+      method: "POST",
+      handler: async (req, res) => {
+        const baseName = req.params[0];
+        if (!isValidName(baseName)) {
+          return res.status(400).json({ ok: false, error: "名称非法" });
+        }
+
+        const relPath = toRelPath(baseName);
+        if (!loader.hasModule(relPath)) {
+          return res.status(404).json({ ok: false, error: "模块不存在" });
+        }
+
+        try {
+          const value = await exec(relPath, req.body);
+          res.status(200).json({ ok: true, value: value ? value : null });
         } catch (err) {
           res.status(500).json({ ok: false, error: err.message });
         }

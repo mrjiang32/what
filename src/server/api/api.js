@@ -23,6 +23,7 @@ export default {
   generate: async () => {
     // 用 Loader 扫描子API模块
     const subapiLoader = new NativeImportLoader(SUBAPI_ROOT);
+    subapiLoader.scanConfig.allowedExts = [".js"];
     const subapiList = await subapiLoader.scanModules();
 
     // 批量加载
@@ -34,9 +35,6 @@ export default {
     const generatedRoutes = await Promise.all(
       subapiModules.map((mod) => mod.default.generate())
     );
-
-    // 初始化索引
-    await subapiLoader.updateAll();
 
     return [rootpage, ...generatedRoutes.flat()];
   },

@@ -1,6 +1,7 @@
 import { pathToFileURL } from "url";
 import path from "path";
 import fs from "fs/promises";
+import chalk from "chalk";
 import utils from "../../utils/utils.js";
 import logger from "../../utils/logger.js";
 
@@ -90,6 +91,8 @@ export default class BaseModuleLoader {
       })
       .map((entry) => path.join(path.relative(rootScanDir, scanDir), entry.name));
 
+    currentDirFiles.forEach(a => this.log.debug(` - ${chalk.gray(a)}`));
+
     const childDirs = dirEntries.filter((entry) => {
       if (!entry.isDirectory()) return false;
       return !entry.name.startsWith(".") && !dirBlackList.includes(entry.name);
@@ -117,6 +120,14 @@ export default class BaseModuleLoader {
    */
   async scanModules(scanDir = null) {
     const root = scanDir ?? this.SCANDIR;
+
+    if (!await utils.fileExists(root)) {
+      await fs.mkdir(root, { recursive: false });
+      return [];
+    }
+
+    this.log.debug(`扫描 ${root} 结果:`);
+
     const cfg = this.scanConfig;
     const relPaths = await this.#scanInternal({
       scanDir: root,
@@ -131,6 +142,7 @@ export default class BaseModuleLoader {
       const key = relPath;
       list.push({ relPath, key });
     }
+
     return list;
   }
 
@@ -140,10 +152,12 @@ export default class BaseModuleLoader {
   async updateAll(scanDir = null) {
     const root = scanDir ?? this.SCANDIR;
     this.moduleSet.clear();
+    this.moduleCache.clear();
     const entries = await this.scanModules(root);
     for (const item of entries) {
       this.updateIndex(item.relPath);
     }
+    return entries;
   }
 
   /**
@@ -216,30 +230,19 @@ export default class BaseModuleLoader {
    * @param {string} relPath 模块相对路径
    * @returns {Promise<any>}
    */
-  async loadAModule(relPath) {
+  async loadAModule(relPath, forceUpdate = true) {
     const key = this.getCacheKey(relPath);
     const spath = this.getModulePath(relPath);
     let module;
 
-    // 旧模块资源释放
-    if (this.moduleCache.has(key)) {
-      const oldMod = this.moduleCache.get(key);
-      if (typeof oldMod.$DISPOSE === "function") {
-        try {
-          await oldMod.$DISPOSE();
-        } catch (err) {
-          this.log.warn(`模块${relPath}资源清理异常`, err.message);
-        }
-      } else {
-        this.log.warn(`模块${relPath}资源无$DISPOSE方法，强烈建议添加`);
-      }
-      this.moduleCache.delete(key);
+    if (this.moduleCache.has(key) &&!forceUpdate) {
+      return this.moduleCache.get(key);
     }
 
     try {
       if (relPath.endsWith(".json")) {
         module = await utils.jsonSimpleR(spath);
-      } else if (relPath.endsWith(".js") || relPath.endsWith(".action.js")) {
+      } else if (relPath.endsWith(".js")) {
         module = await this._loadFileImpl(spath);
       } else {
         throw new Error(`不支持的文件格式 ${relPath}`);

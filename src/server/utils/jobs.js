@@ -75,11 +75,10 @@ function validateSingleJob(fileName, jobKey, jobItem, keyInfo, log) {
 /**
  * 适配新版 Loader：直接使用 relPath，不再拆分 type/name
  */
-async function importJobs() {
+async function importJobs(entries) {
   const jobs = {};
   Object.keys(keyInfo).forEach((key) => (jobs[key] = []));
 
-  const entries = await jobLoader.scanModules();
   for (const entry of entries) {
     const relPath = entry.relPath;
     try {
@@ -123,9 +122,9 @@ async function processJobs(neededEnvironment) {
 }
 
 const getJobs = async () => {
-  await jobLoader.updateAll();
+  const entries = await jobLoader.updateAll();
   return await processJobs({
-    jobs: await importJobs(),
+    jobs: await importJobs(entries),
     ...neededEnvironment,
   });
 };

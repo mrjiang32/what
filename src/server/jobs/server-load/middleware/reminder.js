@@ -8,6 +8,8 @@ const colorStatusCode = (code) => {
     return chalk.green(code);
   } else if (code >= 400 && code < 500) {
     return chalk.red(code);
+  } else if (code >= 400 && code < 500) {
+    return chalk.yellowBright(code);
   } else {
     return code;
   }

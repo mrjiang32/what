@@ -112,4 +112,13 @@ export default {
       if (err.code !== "ENOENT") throw err;
     }
   },
+
+  fileExists: async (path) => {
+    try {
+      await fs.access(path);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
 };
