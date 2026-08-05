@@ -95,6 +95,11 @@ export async function createModuleRoutes({
           return res.status(404).json({ ok: false, error: "模块不存在" });
         }
 
+        if (globalenv.debug) {
+          const value = await exec(relPath, req.body);
+          return res.status(200).json({ ok: true, value: value ? value : null });
+        }
+
         try {
           const value = await exec(relPath, req.body);
           res.status(200).json({ ok: true, value: value ? value : null });

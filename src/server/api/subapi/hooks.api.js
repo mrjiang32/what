@@ -32,11 +32,15 @@ export default {
           return [];
         }
 
-        if (typeof body.params !== "object" || body.params === null) {
-          body.params = {};
+        if (!body) {
+          body = {};
         }
-        if (typeof body.selParams !== "object" || body.selParams === null) {
-          body.selParams = {};
+
+        if (body?.["params"] && typeof body["params"] !== "object") {
+          body["params"] = {};
+        }
+        if (body?.["selParams"] && typeof body["selParams"] !== "object") {
+          body["selParams"] = {};
         }
 
         // 规范化模块名
@@ -47,10 +51,10 @@ export default {
 
         // selParams：key转换为带.js的模块id
         const selParams = {};
-        Object.keys(body.selParams).forEach((k) => {
+        Object.keys(body["selParams"] ?? {}).forEach((k) => {
           const modKey = getModuleName(k);
           if (modKey) {
-            selParams[modKey] = body.selParams[k];
+            selParams[modKey] = body["selParams"][k] ?? {};
           }
         });
 
