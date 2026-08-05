@@ -40,7 +40,6 @@ const LOG_LEVELS = {
 };
 
 async function init(level) {
-  console.log("\nTIME     TYPE  SENDER          MESSAGE");
   // console.log("12:54:33 INFO  Logger          Started in 6 ms");
 
   const now_time = Date.now();
@@ -70,10 +69,10 @@ async function init(level) {
     return `${moment().format("hh:mm:ss")} ${level_str} ${name_str} ${message}`;
   });
 
-  reConfigure(level || "debug");
+  reConfigure(level || "info");
 
   const logger = newLogger("Logger");
-  logger.info("启动用时 " + chalk.green(Date.now() - now_time + " ms"));
+  // logger.debug("启动用时 " + chalk.green(Date.now() - now_time + " ms"));
 }
 
 function reConfigure(level) {

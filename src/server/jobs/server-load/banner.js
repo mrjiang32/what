@@ -12,10 +12,16 @@ const logo = `I8,        8        ,8I  88                                 ad8888
 export default {
   banner: {
     type: "init",
-    priority: 110,
+    priority: 999,
     allowContext: false,
     job: async () => {
       console.log(chalk.green(logo));
+      console.log(
+        `\n${chalk.yellowBright("TIME")}` +
+          `     ${chalk.green("TYPE")}` +
+          `  ${chalk.cyanBright("SENDER")}` +
+          `          ${chalk.blue("MESSAGE")}`,
+      );
     },
   },
 };

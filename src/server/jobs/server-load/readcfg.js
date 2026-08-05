@@ -14,7 +14,7 @@ export default {
       // TODO: 添加命令行支持，从 --config [configPath] 读取（若有）
       log.info(
         "CONFIG " +
-          grayText(`从"${chalk.blueBright(conf.configFilePath)}"读取配置文件`),
+          grayText(`从"${chalk.blueBright(ctx.args["config-file"] || conf.configFilePath)}"读取配置文件`),
       );
       await conf.createFile();
       try {
@@ -24,6 +24,10 @@ export default {
         log.error("CONFIG " + `读取配置文件出现错误: ${err}`);
         log.error("CONFIG " + `进入无头模式`);
         ctx.config = conf.defaultConfig;
+      }
+      if (ctx.args?.debug) {
+        ctx.config.logLevel = "debug";
+        ctx.debug = true;
       }
     },
     allowContext: true,

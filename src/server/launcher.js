@@ -14,6 +14,8 @@ const shutdown = (signal) => {
   jobs.emitStop();
 };
 
+
+
 modifyContext("shutdown", shutdown);
 modifyContext("accesslog", logger.newLogger("Access"));
 modifyContext("actionlog", logger.newLogger("Action"));

@@ -5,7 +5,7 @@ import logger from "./logger.js";
 import utils from "./utils.js";
 import keyInfo from "../global/keyInfo.js";
 import SafeEventEmitter, { bus } from "../classes/SafeEventEmitter.js";
-import neededEnvironment, { addContext } from "../global/globalenv.js";
+import globalenv, { addContext, modifyContext } from "../global/globalenv.js";
 import NativeImportLoader from "../classes/modules/NativeImportLoader.js";
 
 let debug = false;
@@ -125,7 +125,7 @@ const getJobs = async () => {
   const entries = await jobLoader.updateAll();
   return await processJobs({
     jobs: await importJobs(entries),
-    ...neededEnvironment,
+    ...globalenv,
   });
 };
 
@@ -137,19 +137,20 @@ export default {
   init: async () => getJobs(),
 
   emitInit: async function init() {
-    await bus.emitSafe("system:init", neededEnvironment);
-    await bus.emitSafeParallel("system:init.parallel", neededEnvironment);
+    modifyContext("mainLoader", jobLoader);
+    await bus.emitSafe("system:init", globalenv);
+    await bus.emitSafeParallel("system:init.parallel", globalenv);
   },
 
   emitStop: async function stop() {
-    await bus.emitSafeParallel("system:stop.parallel", neededEnvironment);
-    await bus.emitSafe("system:stop", neededEnvironment);
+    await bus.emitSafeParallel("system:stop.parallel", globalenv);
+    await bus.emitSafe("system:stop", globalenv);
   },
 
   modifyContext: (key, value) => {
-    neededEnvironment[key] = value;
+    globalenv[key] = value;
   },
 
-  neededEnvironment,
+  neededEnvironment: globalenv,
   jobLoader,
 };

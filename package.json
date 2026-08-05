@@ -14,6 +14,6 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "node ./src/server/launcher.js"
+    "dev": "node ./src/server/launcher.js --debug"
   }
 }
