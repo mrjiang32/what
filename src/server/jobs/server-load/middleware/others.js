@@ -27,7 +27,7 @@ const settedCookieParser = cookieParser();
 export default {
   mwPathCutter: {
     type: "expressMiddleWare",
-    priority: 100,
+    priority: 199,
     job: pathCutter,
   },
   mwCors: {

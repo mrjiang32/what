@@ -1,6 +1,11 @@
 {
   "scripts": {
     "server:dev": "cd ./src/server && npm run dev",
-    "server:install": "cd ./src/server && npm install"
+    "server:install": "cd ./src/server && npm install",
+    "client:dev": "cd ./src/client && npm run dev",
+    "client:install": "cd ./src/client && npm install",
+    "client:lint": "cd ./src/client && npm run lint",
+    "client:build": "cd ./src/client && npm run build",
+    "client:preview": "cd ./src/client && npm run preview"
   }
 }

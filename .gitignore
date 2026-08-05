@@ -84,6 +84,7 @@ lerna-debug.log*
 *.sln
 *.swp
 *~
+*.npmrc
 
 # ======================================
 # OS junk
