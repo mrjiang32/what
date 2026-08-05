@@ -1,50 +1,81 @@
+# ======================================
 # Dependency directories
-node_modules/
+# ======================================
+src/server/node_modules/
+src/client/node_modules/
 jspm_packages/
 
-# Production
+# ======================================
+# Build output
+# ======================================
+src/client/dist/
 dist/
 build/
 out/
-logs/
-.uploads/
 
-# Logs
+# ======================================
+# Runtime & data
+# ======================================
+logs/
+*.log
+.uploads/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# 服务本地配置json（不提交，本地生成）
+src/server/utils/*.json
+
+# 业务模块动态生成目录（不纳入版本）
+src/server/api/modules/hooks/
+src/server/api/modules/actions/
+
+# ======================================
+# Package manager lockfiles
+# 所有目录的lock全部忽略，子项目本地npm install生成
+# ======================================
+package-lock.json
+src/server/package-lock.json
+src/client/package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# config data
-src/server/utils/*.json
-
-# hooks
-src/server/api/modules/hooks/
-# actions
-src/server/api/modules/actions/
-
-# npm lock file
-package-lock.json
-
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
-
-# Environment files
+# ======================================
+# Env
+# ======================================
 .env
 .env.*
 
-# Miscellaneous
-.DS_Store
-Thumbs.db
-*.log
+# ======================================
+# Cache
+# ======================================
+.cache/
+.eslintcache
+.stylelintcache
+.npm
+
+# Yarn berry
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# ======================================
+# Temp files
+# ======================================
 *.tmp
 *.temp
 
-# IDE and editor directories
+# ======================================
+# IDE / Editor
+# ======================================
 .vscode/
 .idea/
 *.suo
@@ -54,38 +85,11 @@ Thumbs.db
 *.swp
 *~
 
-# OS generated files
+# ======================================
+# OS junk
+# ======================================
+.DS_Store
+Thumbs.db
 Desktop.ini
 ehthumbs.db
 Icon?
-
-# Optional npm cache
-.npm
-
-# Yarn v2
-.yarn/cache/
-.yarn/unplugged/
-.yarn/build-state.yml
-.yarn/install-state.gz
-
-# Optional eslint cache
-.eslintcache
-
-# Optional stylelint cache
-.stylelintcache
-
-# Optional Parcel cache
-.cache/
-
-# Optional Next.js build output
-.next/
-
-# Optional Nuxt.js build output
-.nuxt/
-
-# Optional Gatsby files
-.cache/
-public/
-
-# Optional SvelteKit
-.svelte-kit/
