@@ -5,10 +5,13 @@ export default {
   setSecret: {
     type: "init",
     job: () => {
-      const secret = crypto.randomUUID();
-      modifyContext("secret", secret);
-      globalenv.log.info(`SECRET generated`);
-      globalenv.log.debug(`SECRET: ${secret}`);
+      if(!globalenv.config.secret) {
+        globalenv.config.secret = crypto.randomUUID();
+        globalenv.rewrite = true;
+      }
+      globalenv.secret = globalenv.config.secret;
+      globalenv.log.info(`SECRET set`);
+      globalenv.log.debug(`SECRET: ${globalenv.secret}`);
     },
     priority: 5,
   },

@@ -133,16 +133,24 @@ if (debug) {
   console.log(await getJobs());
 }
 
+let initLock = false;
+let stopLock = false;
+
 export default {
   init: async () => getJobs(),
 
   emitInit: async function init() {
+    if (initLock) return;
+    initLock = true;
     modifyContext("mainLoader", jobLoader);
     await bus.emitSafe("system:init");
     await bus.emitSafeParallel("system:init.parallel");
   },
 
   emitStop: async function stop() {
+    if (stopLock) return;
+    if (!initLock) return;
+    stopLock = true;
     await bus.emitSafeParallel("system:stop.parallel");
     await bus.emitSafe("system:stop");
   },
