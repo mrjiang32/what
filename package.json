@@ -6,6 +6,14 @@
     "client:install": "cd ./src/client && npm install",
     "client:lint": "cd ./src/client && npm run lint",
     "client:build": "cd ./src/client && npm run build",
-    "client:preview": "cd ./src/client && npm run preview"
+    "client:preview": "cd ./src/client && npm run preview",
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "clean": "rimraf node_modules package-lock.json",
+    "clean:all": "rimraf node_modules package-lock.json src/server/node_modules src/server/package-lock.json src/client/node_modules src/client/package-lock.json",
+    "reinstall": "npm run clean:all && concurrently \"npm run server:install\" \"npm run client:install\""
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4",
+    "rimraf": "^6.1.3"
   }
 }

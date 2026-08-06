@@ -6,6 +6,7 @@ export default {
   writeUptime: {
     type: "stop",
     job: async (ctx) => {
+      await ctx.abort.emitSafeParallel("close");
       await new Promise((res) => {
         if (!ctx.server?.close) {
           return res();

@@ -2,8 +2,7 @@ export default {
   abortlogic: {
     type: "expressMiddleWare",
     job: (req, res, next) => {
-      res.locals.aborted = false;
-      req.on("close", () => {
+      req.$ctx.abort.on("abort", () => {
         res.locals.aborted = true;
       });
       next();
