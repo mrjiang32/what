@@ -1,19 +1,20 @@
 import config from "../../utils/config.js";
 import path from "path";
 import utils from "../../utils/utils.js";
+import globalenv from "../../global/globalenv.js";
 
 export default {
   writeUptime: {
     type: "stop",
-    job: async (ctx) => {
-      await ctx.abort.emitSafeParallel("close");
+    job: async () => {
+      await globalenv.abort.emitSafeParallel("close");
       await new Promise((res) => {
-        if (!ctx.server?.close) {
+        if (!globalenv.server?.close) {
           return res();
         }
-        ctx.server.close(res);
+        globalenv.server.close(res);
       });
-      ctx.log.info("已关闭Express服务");
+      globalenv.log.info("已关闭Express服务");
     },
     allowContext: true,
     priority: 0,

@@ -1,14 +1,20 @@
-import crypto from "node:crypto";
 import globalenv from "../../global/globalenv.js";
 import jwt from "jsonwebtoken";
 
 export default {
   generate: () => {
-    const SECRET = crypto.randomUUID();
-
     // 登录签发token
     function signToken(user) {
-      return jwt.sign({ id: user.id, role: user.role }, SECRET, {
+      if (!user) {
+        throw new Error("User not found");
+      }
+      if (!user.role) {
+        throw new Error("User role not found");
+      }
+      if (!user.id) {
+        throw new Error("User id not found");
+      }
+      return jwt.sign({ id: user.id, role: user.role }, globalenv.secret, {
         expiresIn: "2h",
       });
     }
@@ -18,7 +24,13 @@ export default {
         path: "/api/token",
         method: "POST",
         handler: (req, res) => {
-          res.status(200).json(signToken(req.body));
+          try {
+            const token = signToken(req.body);
+            res.status(200).json({ token });
+          } catch (error) {
+            res.status(400).json({ error: error.message });
+          }
+          // res.status(200).json(signToken(req.body));
         },
       },
     ];

@@ -1,13 +1,14 @@
 import chalk from "chalk";
 import utils from "../../utils/utils.js";
 import { parseArgs } from "node:util";
+import globalenv from "../../global/globalenv.js";
 
 const grayText = utils.grayText;
 
 export default {
   parseArg: {
     type: "init",
-    job: async (ctx) => {
+    job: async () => {
       const { values } = parseArgs({
         options: {
           port: { type: 'string', short: 'p' },
@@ -19,11 +20,10 @@ export default {
         },
         allowPositionals: true
       });
-      ctx.args = values;
-      ctx.log.info("ARG 解析命令行参数");
-      ctx.log.info(grayText(JSON.stringify(ctx.args)));
+      globalenv.args = values;
+      globalenv.log.info("ARG 解析命令行参数");
+      globalenv.log.info(grayText(JSON.stringify(globalenv.args)));
     },
-    allowContext: true,
     priority: 120,
   },
 };

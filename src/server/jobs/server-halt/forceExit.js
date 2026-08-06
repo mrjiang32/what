@@ -1,14 +1,15 @@
+import globalenv from "../../global/globalenv.js";
+
 export default {
   forceExit: {
     type: "stopParallel",
-    job: async (ctx) => {
-      await ctx.abort.emitSafe("close");
+    job: async () => {
+      await globalenv.abort.emitSafe("close");
       setTimeout(()=>{
-        console.warn("超时未关闭，强制退出进程");
+        globalenv.log.warn("超时未关闭，强制退出进程");
         process.exit(0);
       }, 2000);
     },
-    allowContext: true,
     priority: 999,
   },
 }

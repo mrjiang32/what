@@ -8,15 +8,14 @@ const grayText = utils.grayText;
 export default {
   jobResult: {
     type: "init",
-    job: async (ctx) => {
+    job: async () => {
       const loader = globalenv.mainLoader;
       const moduleList = loader.getModuleList();
-      ctx.log.debug("MODULE 加载的模块列表:");
+      globalenv.log.debug("MODULE 加载的模块列表:");
       moduleList.forEach((module) => {
-        ctx.log.debug(grayText(module));
+        globalenv.log.debug(grayText(module));
       });
     },
-    allowContext: true,
     priority: 95,
   },
 };

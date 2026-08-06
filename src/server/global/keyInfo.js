@@ -1,10 +1,10 @@
 import { bus } from "../classes/SafeEventEmitter.js";
+import globalenv from "./globalenv.js";
 
 export default {
   init: {
     name: "初始化任务",
     requiredKeys: {
-      allowContext: "boolean",
       job: "function",
       priority: "number",
     },
@@ -13,17 +13,15 @@ export default {
       if (jobA.priority < jobB.priority) return 1;
       return 0;
     },
-    processMethod: (jobItem, globalCtx) => {
+    processMethod: (jobItem) => {
       bus.on("system:init", async () => {
-        const ctx = jobItem.allowContext ? globalCtx : null;
-        await jobItem.job(ctx);
+        await jobItem.job();
       });
     },
   },
   initParallel: {
     name: "[并行] 初始化任务",
     requiredKeys: {
-      allowContext: "boolean",
       job: "function",
       priority: "number",
     },
@@ -32,17 +30,15 @@ export default {
       if (jobA.priority < jobB.priority) return 1;
       return 0;
     },
-    processMethod: (jobItem, globalCtx) => {
+    processMethod: (jobItem) => {
       bus.on("system:init.parallel", async () => {
-        const ctx = jobItem.allowContext ? globalCtx : null;
-        await jobItem.job(ctx);
+        await jobItem.job();
       });
     },
   },
   stop: {
     name: "停机任务",
     requiredKeys: {
-      allowContext: "boolean",
       job: "function",
       priority: "number",
     },
@@ -51,17 +47,15 @@ export default {
       if (jobA.priority < jobB.priority) return 1;
       return 0;
     },
-    processMethod: (jobItem, globalCtx) => {
+    processMethod: (jobItem) => {
       bus.on("system:stop", async () => {
-        const ctx = jobItem.allowContext ? globalCtx : null;
-        await jobItem.job(ctx);
+        await jobItem.job();
       });
     },
   },
   stopParallel: {
     name: "[并行] 停机任务",
     requiredKeys: {
-      allowContext: "boolean",
       job: "function",
       priority: "number",
     },
@@ -70,31 +64,29 @@ export default {
       if (jobA.priority < jobB.priority) return 1;
       return 0;
     },
-    processMethod: (jobItem, globalCtx) => {
+    processMethod: (jobItem) => {
       bus.on("system:stop.parallel", async () => {
-        const ctx = jobItem.allowContext ? globalCtx : null;
-        await jobItem.job(ctx);
+        await jobItem.job();
       });
     },
   },
   timer: {
     name: "定时任务",
     requiredKeys: {
-      allowContext: "boolean",
       job: "function",
       interval: "number",
     },
-    processMethod: (jobItem, globalCtx, timerMap) => {
-      const { interval, job, allowContext } = jobItem;
+    processMethod: (jobItem, timerMap) => {
+      const { interval, job } = jobItem;
       timerMap.has(jobItem) && clearInterval(timerMap.get(jobItem));
       let isRunning = false;
       const run = async () => {
         if (isRunning) return;
         isRunning = true;
         try {
-          await job(allowContext ? globalCtx : null);
+          await job();
         } catch (e) {
-          globalCtx.log.error("定时任务异常", e);
+          globalenv.log.error("定时任务异常", e);
         } finally {
           isRunning = false;
         }
@@ -114,14 +106,14 @@ export default {
       if (jobA.priority < jobB.priority) return 1;
       return 0;
     },
-    processMethod: (jobItem, globalCtx) => {
+    processMethod: (jobItem) => {
       if (jobItem.allowContext === true) {
-        globalCtx.app.use((...args) => {
-          args.push(globalCtx);
+        globalenv.app.use((...args) => {
+          args.push(globalenv);
           return jobItem.job(...args);
         });
       } else {
-        globalCtx.app.use(jobItem.job);
+        globalenv.app.use(jobItem.job);
       }
     },
   },

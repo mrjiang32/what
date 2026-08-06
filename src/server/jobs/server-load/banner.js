@@ -13,7 +13,6 @@ export default {
   banner: {
     type: "init",
     priority: 999,
-    allowContext: false,
     job: async () => {
       console.log(chalk.green(logo));
       console.log(

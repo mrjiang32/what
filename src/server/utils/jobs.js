@@ -115,7 +115,7 @@ async function processJobs(neededEnvironment) {
     }
 
     jobArray.forEach((value) => {
-      processMethod(value, neededEnvironment, timerMap);
+      processMethod(value, timerMap);
     });
   });
   return jobs;
@@ -138,13 +138,13 @@ export default {
 
   emitInit: async function init() {
     modifyContext("mainLoader", jobLoader);
-    await bus.emitSafe("system:init", globalenv);
-    await bus.emitSafeParallel("system:init.parallel", globalenv);
+    await bus.emitSafe("system:init");
+    await bus.emitSafeParallel("system:init.parallel");
   },
 
   emitStop: async function stop() {
-    await bus.emitSafeParallel("system:stop.parallel", globalenv);
-    await bus.emitSafe("system:stop", globalenv);
+    await bus.emitSafeParallel("system:stop.parallel");
+    await bus.emitSafe("system:stop");
   },
 
   modifyContext: (key, value) => {
