@@ -28,11 +28,9 @@ export default {
         next();
       });
     },
-    priority: 85,
   },
   bodyUrlDecode: {
     type: "expressMiddleWare",
     job: bodyParser.urlencoded({ extended: true }),
-    priority: 80,
   },
 };

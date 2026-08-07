@@ -7,6 +7,5 @@ export default {
       });
       next();
     },
-    priority: 89,
   },
 };

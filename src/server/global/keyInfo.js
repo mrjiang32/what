@@ -103,9 +103,9 @@ export default {
       job: "function",
     },
     comparePriority: (jobA, jobB) => {
-      if (jobA.priority > jobB.priority) return -1;
-      if (jobA.priority < jobB.priority) return 1;
-      return 0;
+      if (jobA.priority < jobB.priority) return -1;
+      if (jobA.priority > jobB.priority) return 1;
+      return (jobA._innerSeq ?? 0) - (jobB._innerSeq ?? 0);
     },
     processMethod: (jobItem) => {
       if (jobItem.allowContext === true) {
