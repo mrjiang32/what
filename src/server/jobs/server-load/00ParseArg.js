@@ -24,6 +24,5 @@ export default {
       globalenv.log.info("ARG 解析命令行参数");
       globalenv.log.info(grayText(JSON.stringify(globalenv.args)));
     },
-    priority: 120,
   },
 };

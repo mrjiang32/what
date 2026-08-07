@@ -5,7 +5,6 @@ import globalenv from "../../global/globalenv.js";
 export default {
   banner: {
     type: "init",
-    priority: 0,
     job: async () => {
       globalenv.server = await new Promise((resolve, reject) => {
         const httpServer = globalenv.app.listen(

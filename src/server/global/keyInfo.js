@@ -6,41 +6,42 @@ export default {
     name: "初始化任务",
     requiredKeys: {
       job: "function",
-      priority: "number",
     },
     comparePriority: (jobA, jobB) => {
-      if (jobA.priority > jobB.priority) return -1;
-      if (jobA.priority < jobB.priority) return 1;
-      return 0;
+      // priority越小，越靠前执行（适配linux文件名序号：00最先）
+      if (jobA.priority < jobB.priority) return -1;
+      if (jobA.priority > jobB.priority) return 1;
+      return (jobA._innerSeq ?? 0) - (jobB._innerSeq ?? 0);
     },
     processMethod: (jobItem) => {
       bus.on("system:init", async () => {
         await jobItem.job();
       });
     },
+    overridePriority: true,
   },
   initParallel: {
     name: "[并行] 初始化任务",
     requiredKeys: {
       job: "function",
-      priority: "number",
     },
     comparePriority: (jobA, jobB) => {
-      if (jobA.priority > jobB.priority) return -1;
-      if (jobA.priority < jobB.priority) return 1;
-      return 0;
+      // priority越小，越靠前执行（适配linux文件名序号：00最先）
+      if (jobA.priority < jobB.priority) return -1;
+      if (jobA.priority > jobB.priority) return 1;
+      return (jobA._innerSeq ?? 0) - (jobB._innerSeq ?? 0);
     },
     processMethod: (jobItem) => {
       bus.on("system:init.parallel", async () => {
         await jobItem.job();
       });
     },
+    overridePriority: true,
   },
   stop: {
     name: "停机任务",
     requiredKeys: {
       job: "function",
-      priority: "number",
     },
     comparePriority: (jobA, jobB) => {
       if (jobA.priority > jobB.priority) return -1;
@@ -52,12 +53,12 @@ export default {
         await jobItem.job();
       });
     },
+    overridePriority: true,
   },
   stopParallel: {
     name: "[并行] 停机任务",
     requiredKeys: {
       job: "function",
-      priority: "number",
     },
     comparePriority: (jobA, jobB) => {
       if (jobA.priority > jobB.priority) return -1;
@@ -69,6 +70,7 @@ export default {
         await jobItem.job();
       });
     },
+    overridePriority: true,
   },
   timer: {
     name: "定时任务",
@@ -99,7 +101,6 @@ export default {
     name: "Express 中间件",
     requiredKeys: {
       job: "function",
-      priority: "number",
     },
     comparePriority: (jobA, jobB) => {
       if (jobA.priority > jobB.priority) return -1;
@@ -116,5 +117,6 @@ export default {
         globalenv.app.use(jobItem.job);
       }
     },
+    overridePriority: true,
   },
 };

@@ -31,6 +31,5 @@ export default {
         globalenv.debug = true;
       }
     },
-    priority: 100,
   },
 };

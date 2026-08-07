@@ -13,7 +13,5 @@ export default {
         globalenv.log.info("API  " + utils.grayText(route.method + "  " + route.path));
       });
     },
-    allowContext: true,
-    priority: 95,
   },
 };

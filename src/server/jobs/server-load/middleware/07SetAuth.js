@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 
 // 鉴权中间件
 function authMiddleware(req, res, next) {
+  if (!req.url.startsWith("/api")) return next();
   if (req.url !== "/api/token") {
     const secret = req.$ctx.secret;
     const token = req.headers.authorization?.split(" ")[1];

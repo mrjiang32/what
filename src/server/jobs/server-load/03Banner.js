@@ -12,7 +12,6 @@ const logo = `I8,        8        ,8I  88                                 ad8888
 export default {
   banner: {
     type: "init",
-    priority: 999,
     job: async () => {
       console.log(chalk.green(logo));
       console.log(

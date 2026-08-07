@@ -17,6 +17,5 @@ export default {
         log.info("EULA   已同意最终用户许可协议(EULA).");
       }
     },
-    priority: 99.5,
   },
 };

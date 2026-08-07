@@ -29,6 +29,5 @@ export default {
       });
       next();
     },
-    priority: 998,
   },
 };

@@ -16,6 +16,5 @@ export default {
         globalenv.log.debug(grayText(module));
       });
     },
-    priority: 95,
   },
 };

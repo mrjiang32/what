@@ -27,6 +27,17 @@ addContext({
 const jobLoader = new NativeImportLoader(SCANDIR);
 jobLoader.scanConfig.allowedExts = [".js", ".mjs", ".cjs"];
 
+/**
+ * 解析文件名数字前缀作为priority
+ * @param {string} relPath
+ * @returns {number}
+ */
+function parseFilePriority(relPath) {
+  const basename = path.basename(relPath);
+  const match = basename.match(/^(\d+)/);
+  return match ? Number(match[1]) : 50;
+}
+
 function validateSingleJob(fileName, jobKey, jobItem, keyInfo, log) {
   if (!jobItem) {
     log.error(`文件："${fileName}" 内任务 "${jobKey}" 配置为空`);
@@ -81,14 +92,19 @@ async function importJobs(entries) {
 
   for (const entry of entries) {
     const relPath = entry.relPath;
+    const filePriority = parseFilePriority(relPath);
     try {
-      // 新版 loader 直接传相对路径字符串
       const module = await jobLoader.loadAModule(relPath);
       const eachJob = module.default ?? module;
 
       for (const [jobKey, jobItem] of Object.entries(eachJob)) {
         if (validateSingleJob(relPath, jobKey, jobItem, keyInfo, jobLog)) {
           jobItem.name = jobKey;
+          // 仅这四类任务，由文件名注入priority
+          if (keyInfo[jobItem.type].overridePriority === true) {
+            // 规范：用户不要手动写priority，框架覆盖
+            jobItem.priority = filePriority;
+          }
           jobs[jobItem.type].push(jobItem);
         } else {
           jobLog.warn(`任务 "${jobKey}" 校验失败，已丢弃`);
