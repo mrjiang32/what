@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 import utils from "./utils.js"
 import { generateSalt, hashPassword } from "./passwd.js";
+import globalenv from "../global/globalenv.js"
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,11 +14,8 @@ const deepFreeze = utils.deepFreeze;
 const deepMerge = utils.deepMerge;
 
 const defaultSalt = generateSalt();
+const defaultPassword = generateSalt();
 
-/**
- * 默认全局配置
- * @type {Readonly<{server:{port:number,host:string},createdDate:number,eula:boolean,logLevel:string}>}
- */
 const DEFAULT_CONFIG = deepFreeze({
   server: {
     port: 3000,
@@ -26,12 +24,13 @@ const DEFAULT_CONFIG = deepFreeze({
   users: {
     "admin": {
       role: "admin",
-      shadow: hashPassword(generateSalt(), defaultSalt),
-      salt: defaultSalt
+      shadow: hashPassword(defaultPassword, defaultSalt),
+      salt: defaultSalt,
+      defaultPasswd: defaultPassword,
     }
   },
   createdDate: Date.now(),
-  eula: false,
+  eula: true,
   logLevel: "info",
 });
 
@@ -65,7 +64,7 @@ export default Object.freeze({
     try {
       await fsPromises.access(CONFIG_PATH, fs.constants.R_OK | fs.constants.W_OK);
     } catch (e) {
-      await saveConfigAsync({});
+      await utils.jsonSimpleW(CONFIG_PATH, DEFAULT_CONFIG);
     }
   },
   configFilePath: CONFIG_PATH,
@@ -79,4 +78,6 @@ export default Object.freeze({
    * @type {string}
    */
   configDirPath: __dirname,
+
+  defaultPassword,
 });

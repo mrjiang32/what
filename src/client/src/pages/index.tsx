@@ -2,17 +2,23 @@ import { siteConfig } from "@/config/site";
 import { title, subtitle } from "@/components/primitives";
 import { GithubIcon } from "@/components/icons";
 import DefaultLayout from "@/layouts/default";
-
-// import { UserContext } from "@/provider";
-// import { useContext } from "react";
-
-// let context: { LoggedIn: any; };
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/provider";
+import { Button } from "@heroui/react";
 
 export default function IndexPage() {
-  // context = useContext(UserContext);
-  // function handleClick(): undefined {
-  //   context.LoggedIn[1](!context.LoggedIn[0]);
-  // }
+  const navigate = useNavigate();
+  const { isLogin, logout } = useAuth();
+
+  const handleAuthClick = () => {
+    if (!isLogin) {
+      // 当前页无刷新跳转到登录页
+      navigate("/login");
+    } else {
+      logout();
+    }
+  };
+
   return (
     <DefaultLayout>
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
@@ -29,23 +35,16 @@ export default function IndexPage() {
         </div>
 
         <div className="flex gap-3">
-          <a
-            className="button button--primary button--md rounded-full"
-            rel="noopener noreferrer"
-            target="_blank"
-            // onClick={handleClick}
-          >
-            LogIn / Out
-          </a>
-          <a
-            className="button button--tertiary button--md rounded-full"
-            href={siteConfig.links.github}
-            rel="noopener noreferrer"
-            target="_blank"
+          <Button variant="primary" onPress={handleAuthClick}>
+            {isLogin ? "退出登录" : "去登录"}
+          </Button>
+          <Button
+            variant="tertiary"
+            onPress={() => window.open(siteConfig.links.github, "_blank")}
           >
             <GithubIcon size={20} />
             GitHub
-          </a>
+          </Button>
         </div>
 
         <div className="mt-8">

@@ -7,10 +7,10 @@ export default {
       if (Array.isArray(globalenv.whiteList)) {
         globalenv.whiteList = [
           ...globalenv.whiteList,
-          "/api/login", // 获取token登录接口
+          "/api/auth/login", // 获取token登录接口
         ];
       } else {
-        globalenv.whiteList = ["/api/login"];
+        globalenv.whiteList = ["/api/auth/login"];
       } // 获取token登录接口
     },
   },

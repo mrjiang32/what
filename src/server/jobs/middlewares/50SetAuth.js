@@ -41,6 +41,9 @@ function authMiddleware(req, res, next) {
 
   try {
     const payload = jwt.verify(token, secret);
+    if(!globalenv.tokenMap.has(token)){
+      throw new Error("token无效");
+    }
     req.user = payload; // 将用户信息挂载请求对象
     next();
   } catch (err) {

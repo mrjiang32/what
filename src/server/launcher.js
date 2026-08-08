@@ -4,11 +4,12 @@ import nedenv, { modifyContext } from "./global/globalenv.js";
 import jobs from "./utils/jobs.js";
 import logger from "./utils/logger.js";
 import path from "path";
-import SafeEventEmitter from "./classes/SafeEventEmitter.js";
+import SafeEventEmitter, { bus } from "./classes/SafeEventEmitter.js";
 import { fileURLToPath } from "url";
 
 await logger.init();
 const log = logger.newLogger("Launcher");
+bus.setMaxListeners(100);
 
 let shutdownLock = false;
 const shutdown = (signal) => {
@@ -28,6 +29,7 @@ modifyContext(
   path.resolve(path.dirname(fileURLToPath(import.meta.url))),
 );
 modifyContext("abort", new SafeEventEmitter());
+modifyContext("tokenMap", new Map());
 
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));

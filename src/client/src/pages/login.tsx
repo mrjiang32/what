@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import request from "@/utils/request";
 import { useAuth } from "@/provider";
 import DefaultLayout from "@/layouts/default";
-import { title, subtitle } from "@/components/primitives";
+// 只用基础组件，API 最稳定
+import { Card, Input, Button } from "@heroui/react";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  // ✅读取全局auth状态、拿到login方法
   const { isLogin, login } = useAuth();
 
   const [username, setUsername] = useState("");
@@ -15,53 +15,64 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errMsg, setErrMsg] = useState("");
 
-  // 如果已经登录，直接跳首页
+  // 登录态校验中
+  if (isLogin === null) {
+    return (
+      <DefaultLayout>
+        <div className="flex justify-center items-center h-screen">加载中…</div>
+      </DefaultLayout>
+    );
+  }
+
+  // 已登录直接跳转
   if (isLogin === true) {
     navigate("/", { replace: true });
     return null;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrMsg("");
     setLoading(true);
 
     try {
-      const res = await axios.post("/api/login", {
-        username,
-        password,
-      });
+      const res = await request.post(
+        "/api/auth/login",
+        { username, password },
+        { withCredentials: true }
+      );
       const data = res.data;
 
       if (data.ok) {
-        // ✅调用context的login，存入内存accessToken、用户信息
-        login(data.accessToken, data.user);
-        // 登录成功跳首页
+        login(data.token, data.username);
         navigate("/", { replace: true });
       } else {
         setErrMsg(data.error || "登录失败");
       }
-    } catch (err) {
-      setErrMsg("网络异常，请稍后重试");
+    } catch (err: any) {
+      setErrMsg(err.message || "登录失败");
     } finally {
       setLoading(false);
     }
   };
-return (
+
+  return (
     <DefaultLayout>
-      <section className="flex flex-col items-center justify-center py-8 md:py-10">
-        <div className="w-full max-w-lg px-4">
-          <h2 className={title({ class: "mb-6 text-center" })}>登录</h2>
+      <section className="flex flex-col items-center justify-center py-8 md:py-12 min-h-screen">
+        {/* Card 纯容器，内部自己做内边距，避开子组件不存在的问题 */}
+        <Card className="w-full max-w-md p-6">
+          <h2 className="text-2xl font-bold text-center mb-6">登录</h2>
 
           {errMsg && (
             <div className="text-danger text-center mb-4">{errMsg}</div>
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            {/* 自定义 label + Input 基础组件 */}
             <div className="flex flex-col gap-2">
-              <label className={subtitle({ class: "text-small" })}>用户名</label>
-              <input
-                className="rounded-xl bg-surface px-4 py-2 outline-none border border-accent/20 focus:border-accent"
+              <label className="text-sm font-medium">用户名</label>
+              <Input
+                placeholder="请输入用户名"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
@@ -69,25 +80,26 @@ return (
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className={subtitle({ class: "text-small" })}>密码</label>
-              <input
+              <label className="text-sm font-medium">密码</label>
+              <Input
                 type="password"
-                className="rounded-xl bg-surface px-4 py-2 outline-none border border-accent/20 focus:border-accent"
+                placeholder="请输入密码"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
 
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="button button--primary button--md rounded-full w-full mt-2"
+              variant="primary"
+              className="w-full mt-2"
+              isPending={loading}
             >
               {loading ? "登录中..." : "登录"}
-            </button>
+            </Button>
           </form>
-        </div>
+        </Card>
       </section>
     </DefaultLayout>
   );
