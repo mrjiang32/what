@@ -1,5 +1,6 @@
-import utils from "../../../utils/utils.js";
+import utils from "../../utils/utils.js";
 import chalk from "chalk";
+import globalenv from "../../global/globalenv.js";
 
 const grayText = utils.grayText;
 
@@ -19,7 +20,7 @@ export default {
   reminder: {
     type: "expressMiddleWare",
     job: (req, res, next) => {
-      const middleWareLog = req.$ctx.accesslog;
+      const middleWareLog = globalenv.accesslog;
       res.on("finish", () => {
         middleWareLog.debug(
           grayText(

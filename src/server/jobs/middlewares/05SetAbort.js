@@ -1,12 +1,13 @@
+import globalenv from "../../global/globalenv.js";
+
 export default {
   abortlogic: {
     type: "expressMiddleWare",
     job: (req, res, next) => {
-      req.$ctx.abort.on("abort", () => {
+      globalenv.abort.on("abort", () => {
         res.locals.aborted = true;
       });
       next();
     },
-    priority: 89,
   },
 };

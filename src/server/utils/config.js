@@ -3,6 +3,7 @@ import fsPromises from "fs/promises";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 import utils from "./utils.js"
+import { generateSalt, hashPassword } from "./passwd.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,6 +11,8 @@ const CONFIG_PATH = path.resolve(__dirname, "config.json");
 
 const deepFreeze = utils.deepFreeze;
 const deepMerge = utils.deepMerge;
+
+const defaultSalt = generateSalt();
 
 /**
  * 默认全局配置
@@ -19,6 +22,13 @@ const DEFAULT_CONFIG = deepFreeze({
   server: {
     port: 3000,
     host: "127.0.0.1",
+  },
+  users: {
+    "admin": {
+      role: "admin",
+      shadow: hashPassword(generateSalt(), defaultSalt),
+      salt: defaultSalt
+    }
   },
   createdDate: Date.now(),
   eula: false,

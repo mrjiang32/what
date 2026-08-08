@@ -80,6 +80,13 @@ function validateSingleJob(fileName, jobKey, jobItem, keyInfo, log) {
     }
   }
 
+  // if (!validatePass) {
+  //   if (!Array.isArray(globalenv.failedJobs)) {
+  //     modifyContext("failedJobs", []);
+  //   }
+  //   globalenv.failedJobs.push(jobItem);
+  // }
+
   return validatePass;
 }
 
@@ -108,6 +115,10 @@ async function importJobs(entries) {
           jobs[jobItem.type].push(jobItem);
         } else {
           jobLog.warn(`任务 "${jobKey}" 校验失败，已丢弃`);
+          if (!Array.isArray(globalenv.failedJobs)) {
+            modifyContext("failedJobs", []);
+          }
+          globalenv.failedJobs.push(jobKey);
         }
       }
     } catch (err) {

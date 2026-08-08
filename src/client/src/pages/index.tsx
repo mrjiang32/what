@@ -3,7 +3,16 @@ import { title, subtitle } from "@/components/primitives";
 import { GithubIcon } from "@/components/icons";
 import DefaultLayout from "@/layouts/default";
 
+// import { UserContext } from "@/provider";
+// import { useContext } from "react";
+
+// let context: { LoggedIn: any; };
+
 export default function IndexPage() {
+  // context = useContext(UserContext);
+  // function handleClick(): undefined {
+  //   context.LoggedIn[1](!context.LoggedIn[0]);
+  // }
   return (
     <DefaultLayout>
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
@@ -22,11 +31,11 @@ export default function IndexPage() {
         <div className="flex gap-3">
           <a
             className="button button--primary button--md rounded-full"
-            href={siteConfig.links.docs}
             rel="noopener noreferrer"
             target="_blank"
+            // onClick={handleClick}
           >
-            Documentation
+            LogIn / Out
           </a>
           <a
             className="button button--tertiary button--md rounded-full"

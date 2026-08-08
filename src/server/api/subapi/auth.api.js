@@ -21,16 +21,23 @@ export default {
 
     return [
       {
-        path: "/api/token",
+        path: "/api/login",
         method: "POST",
         handler: (req, res) => {
           try {
             const token = signToken(req.body);
-            res.status(200).json({ token });
+            res.status(200).json({ ok: true, token });
           } catch (error) {
-            res.status(400).json({ error: error.message });
+            res.status(400).json({ ok: true, error: error.message });
           }
           // res.status(200).json(signToken(req.body));
+        },
+      },
+      {
+        path: "/api/validate",
+        method: "GET",
+        handler: (req, res) => {
+          res.status(200).json({ ok: true });
         },
       },
     ];

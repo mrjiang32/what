@@ -1,12 +1,12 @@
 import bodyParser from "body-parser";
+import globalenv from "../../global/globalenv.js"
 const jsonParser = bodyParser.json({ limit: "10mb" });
 
 export default {
   jsonParser: {
     type: "expressMiddleWare",
     job: (req, res, next) => {
-      // console.log(req.$ctx);
-      const middleWareLog = req.$ctx.log;
+      const middleWareLog = globalenv.log;
       jsonParser(req, res, (err) => {
         if (err) {
           if (err.type === "entity.parse.failed") {
@@ -28,11 +28,9 @@ export default {
         next();
       });
     },
-    priority: 85,
   },
   bodyUrlDecode: {
     type: "expressMiddleWare",
     job: bodyParser.urlencoded({ extended: true }),
-    priority: 80,
   },
 };
