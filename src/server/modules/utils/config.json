@@ -1,0 +1,18 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "127.0.0.1"
+  },
+  "users": {
+    "admin": {
+      "role": "admin",
+      "shadow": "wyqfooDvGNtx9zDa4Oara52fEa0ju6b5givtSTwiLmM=",
+      "salt": "SfRM3MqYLbGKMSf/9cmLLQ==",
+      "defaultPasswd": "zpaw4dO3VCuSzbPmLqoSLw=="
+    }
+  },
+  "createdDate": 1786160000470,
+  "eula": true,
+  "logLevel": "debug",
+  "secret": "db638206-4678-40b4-8eac-8838e35f0f07"
+}

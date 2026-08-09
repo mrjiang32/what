@@ -2,12 +2,13 @@ import { pathToFileURL } from "url";
 import path from "path";
 import fs from "fs/promises";
 import chalk from "chalk";
-import utils from "../../utils/utils.js";
-import logger from "../../utils/logger.js";
+import utils from "../utils/utils.js";
+import logger from "../utils/logger.js";
+import { ModuleScanner } from "./ModuleScanner.js";
 
 /**
- * 模块加载器【抽象基类】通用骨架
- * 重构：type+name → relPath（相对路径，包含目录+完整文件名）
+ * 模块加载器【抽象基类】
+ * 扫描逻辑抽离至 ModuleScanner，本类专注索引、缓存、模块加载、文件读写
  */
 export default class BaseModuleLoader {
   /**
@@ -29,6 +30,9 @@ export default class BaseModuleLoader {
       maxDepth: 10,
       dirBlackList: ["node_modules", ".git", "dist", "build"],
     };
+
+    // 组合扫描器实例
+    this.scanner = new ModuleScanner(this.scanConfig);
   }
 
   /**
@@ -41,16 +45,12 @@ export default class BaseModuleLoader {
   }
 
   /**
-   * 根据相对路径生成绝对路径，并校验防越界
+   * 根据相对路径生成绝对路径，并校验防越界（委托给 scanner）
    * @param {string} relPath 相对于 SCANDIR 的路径，例：hook/demo.js
    * @returns {string} 绝对路径
    */
   getModulePath(relPath) {
-    const target = path.join(this.SCANDIR, relPath);
-    if (!target.startsWith(this.SCANDIR)) {
-      throw new Error(`非法模块路径，禁止越界访问: ${relPath}`);
-    }
-    return target;
+    return this.scanner.resolveFullPath(this.SCANDIR, relPath);
   }
 
   /**
@@ -63,86 +63,23 @@ export default class BaseModuleLoader {
   }
 
   /**
-   * 内部目录扫描
-   */
-  async #scanInternal({
-    scanDir,
-    rootScanDir,
-    allowedExts,
-    maxDepth,
-    dirBlackList,
-  }) {
-    if (!scanDir) scanDir = rootScanDir;
-    if (maxDepth <= 0) return [];
-
-    const extSet = new Set(allowedExts);
-    let dirEntries;
-    try {
-      dirEntries = await fs.readdir(scanDir, { withFileTypes: true });
-    } catch (scanErr) {
-      this.log.error(`目录 "${scanDir}" 扫描失败：${scanErr.message}`);
-      throw new Error(`扫描目录发生异常: ${scanErr.message}`);
-    }
-
-    const currentDirFiles = dirEntries
-      .filter((entry) => {
-        const ext = path.extname(entry.name);
-        return entry.isFile() && extSet.has(ext) && !entry.name.startsWith(".");
-      })
-      .map((entry) => path.join(path.relative(rootScanDir, scanDir), entry.name));
-
-    currentDirFiles.forEach(a => this.log.debug(` - ${chalk.gray(a)}`));
-
-    const childDirs = dirEntries.filter((entry) => {
-      if (!entry.isDirectory()) return false;
-      return !entry.name.startsWith(".") && !dirBlackList.includes(entry.name);
-    });
-
-    const childPromises = childDirs.map((entry) => {
-      const childFullPath = path.join(scanDir, entry.name);
-      return this.#scanInternal({
-        scanDir: childFullPath,
-        rootScanDir,
-        allowedExts,
-        maxDepth: maxDepth - 1,
-        dirBlackList,
-      });
-    });
-
-    const childResults = await Promise.all(childPromises);
-    const allChild = childResults.flat();
-    return [...new Set([...currentDirFiles, ...allChild])];
-  }
-
-  /**
-   * 对外扫描入口
+   * 对外扫描入口，兼容旧接口
    * @returns {Promise<Array<{relPath:string, key:string}>>}
    */
   async scanModules(scanDir = null) {
     const root = scanDir ?? this.SCANDIR;
 
-    if (!await utils.fileExists(root)) {
+    if (!(await utils.fileExists(root))) {
       await fs.mkdir(root, { recursive: false });
       return [];
     }
 
-    this.log.debug(`扫描 ${root} 结果:`);
-
-    const cfg = this.scanConfig;
-    const relPaths = await this.#scanInternal({
-      scanDir: root,
-      rootScanDir: root,
-      allowedExts: cfg.allowedExts,
-      maxDepth: cfg.maxDepth,
-      dirBlackList: cfg.dirBlackList,
-    });
-
+    const relPaths = await this.scanner.scan(root);
     const list = [];
     for (const relPath of relPaths) {
       const key = relPath;
       list.push({ relPath, key });
     }
-
     return list;
   }
 
@@ -228,6 +165,7 @@ export default class BaseModuleLoader {
   /**
    * 主干加载流程
    * @param {string} relPath 模块相对路径
+   * @param {boolean} forceUpdate
    * @returns {Promise<any>}
    */
   async loadAModule(relPath, forceUpdate = true) {
@@ -235,7 +173,7 @@ export default class BaseModuleLoader {
     const spath = this.getModulePath(relPath);
     let module;
 
-    if (this.moduleCache.has(key) &&!forceUpdate) {
+    if (this.moduleCache.has(key) && !forceUpdate) {
       return this.moduleCache.get(key);
     }
 

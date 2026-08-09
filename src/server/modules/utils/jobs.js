@@ -3,9 +3,9 @@ import { fileURLToPath } from "url";
 
 import logger from "./logger.js";
 import utils from "./utils.js";
-import keyInfo from "../global/keyInfo.js";
+import keyInfo from "../../global/keyInfo.js";
 import SafeEventEmitter, { bus } from "../classes/SafeEventEmitter.js";
-import globalenv, { addContext, modifyContext } from "../global/globalenv.js";
+import globalenv, { addContext, modifyContext } from "../../global/globalenv.js";
 import NativeImportLoader from "../classes/modules/NativeImportLoader.js";
 
 let debug = false;

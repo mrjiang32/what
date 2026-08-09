@@ -1,5 +1,5 @@
 import BaseModuleLoader from "./BaseModuleLoader.js";
-import utils from "../../utils/utils.js";
+import utils from "../utils/utils.js";
 import vm from "vm";
 import globalenv from "../../global/globalenv.js";
 
