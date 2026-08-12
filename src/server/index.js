@@ -1,6 +1,7 @@
+import main from "./global/main.js";
 import global from "./global.js";
 
 global.startTime = Date.now();
 
-await global.main.getReady();
-await global.bus.emitSafe("sys:init");
+await main.getReady();
+await main.bus.emitSafe("sys:init");

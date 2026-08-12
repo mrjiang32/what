@@ -1,118 +1,93 @@
+// hook.api.js
 import { createModuleRoutes } from "../RESTful.js";
-import global from "../../../global.js";
-import path from "path";
-import { fileURLToPath } from "url";
+import { exec as execFunc } from "./func.api.js"; // 优雅地复用执行逻辑
+import sources from "../../../global/config/source.category.js";
 
 export default async () => {
-    const loader = new NativeImportLoader(HOOKS_ROOT);
-    loader.scanConfig.allowedExts = [".json"];
+  // 直接从全局配置中获取已初始化的 Source 实例
+  const hookSource = sources["/custom/hook"].source;
+  const funcSource = sources["/custom/func"].source;
 
-    const routes = await createModuleRoutes({
-      apiPrefix: "/api/hook",
-      dirPrefix: "",
-      fileExt: ".json",
-      loader,
-      exec: async (relPath, body) => {
-        global.actionlog.info(`触发钩子 ${relPath}`);
-        let res;
-        try {
-          res = await loader.loadAModule(relPath);
-        } catch (err) {
-          global.actionlog.error(`钩子加载失败 ${relPath}`, err);
-          return [];
-        }
-        const { actions } = res ?? {};
+  const routes = await createModuleRoutes({
+    apiPrefix: "/api/hook",
+    source: hookSource,
+    exec: async (relPath, body) => {
+      global.actionlog.info(`触发钩子 ${relPath}`);
+      
+      let res;
+      try {
+        // JSONSource.get() 直接返回解析后的 JS 对象
+        res = await hookSource.get(relPath);
+      } catch (err) {
+        global.actionlog.error(`钩子加载失败 ${relPath}`, err);
+        return [];
+      }
+      
+      const { actions } = res ?? {};
+      if (!Array.isArray(actions)) return [];
 
-        if (!Array.isArray(actions)) {
-          return [];
-        }
+      // 规范化请求体参数
+      const baseParams = (body?.params && typeof body.params === "object") ? body.params : {};
+      const rawSelParams = (body?.selParams && typeof body.selParams === "object") ? body.selParams : {};
 
-        if (!body) {
-          body = {};
-        }
+      // 规范化模块名
+      const getModuleName = (name) => {
+        if (!name) return null;
+        return name.endsWith('.js') ? name : `${name}.js`;
+      };
 
-        if (body?.["params"] && typeof body["params"] !== "object") {
-          body["params"] = {};
-        }
-        if (body?.["selParams"] && typeof body["selParams"] !== "object") {
-          body["selParams"] = {};
-        }
+      // selParams：key转换为带.js的模块id
+      const selParams = {};
+      Object.keys(rawSelParams).forEach((k) => {
+        const modKey = getModuleName(k);
+        if (modKey) selParams[modKey] = rawSelParams[k] ?? {};
+      });
 
-        // 规范化模块名
-        const getModuleName = (name) => {
-          if (!name) return null;
-          return name.endsWith('.js') ? name : `${name}.js`;
-        };
-
-        // selParams：key转换为带.js的模块id
-        const selParams = {};
-        Object.keys(body["selParams"] ?? {}).forEach((k) => {
-          const modKey = getModuleName(k);
-          if (modKey) {
-            selParams[modKey] = body["selParams"][k] ?? {};
-          }
+      const promises = actions
+        .map(raw => ({
+          id: getModuleName(raw.id),
+          param: raw.param ?? {}
+        }))
+        // 使用 funcSource.has() 校验目标 action 是否存在于 func 数据源中
+        .filter(modified => modified.id && funcSource.has(modified.id))
+        .map(modified => {
+          const selOverride = selParams[modified.id] ?? {};
+          // 合并优先级：json文件param < body.params < selParams（按模块单独覆写）
+          const merged = { ...modified.param, ...baseParams, ...selOverride };
+          
+          // 委托给 func.api.js 的 exec 函数处理执行（内部包含安全克隆）
+          return execFunc(modified.id, { params: merged });
         });
 
-        const promises = actions
-          .map(raw => {
-            const modId = getModuleName(raw.id);
-            return {
-              id: modId,
-              param: raw.param ?? {}
-            };
-          })
-          .filter(modified => modified.id && global.actionLoader.hasModule(modified.id))
-          .map(modified => {
-            const baseParams = body.params;
-            const selOverride = selParams[modified.id] ?? {};
-            // 合并优先级：json文件param < body.params < selParams（按模块单独覆写）
-            const merged = { ...modified.param, ...baseParams, ...selOverride };
-
-            let safeParams;
-            try {
-              safeParams = structuredClone(merged);
-            } catch (e) {
-              global.actionlog.error(`hook param clone failed for module ${modified.id}`, e);
-              return Promise.reject(e);
-            }
-            return global.actionLoader.runModule(modified.id, safeParams);
-          });
-
-        const settled = await Promise.allSettled(promises);
-        const results = [];
-        for (const item of settled) {
-          if (item.status === 'fulfilled') {
-            results.push({ ok: true, value: item.value });
-          } else {
-            const err = item.reason;
-            const errInfo = {
-              message: err?.message ?? String(err),
-              stack: err?.stack
-            };
-            results.push({ ok: false, reason: errInfo });
-            global.actionlog.error(`钩子子脚本执行异常`, err);
-          }
+      const settled = await Promise.allSettled(promises);
+      return settled.map(item => {
+        if (item.status === 'fulfilled') {
+          return { ok: true, value: item.value };
         }
-        return results;
-      },
-      validateSyntax: false,
-    });
+        const err = item.reason;
+        global.actionlog.error(`钩子子脚本执行异常`, err);
+        return { 
+          ok: false, 
+          reason: { message: err?.message ?? String(err), stack: err?.stack } 
+        };
+      });
+    },
+  });
 
-    // Hook 专属扩展：保存时自动结构化 JSON
-    // 找到 POST 路由，替换 handler
-    const postRoute = routes.find((r) => r.path === "/api/hook" && r.method === "POST");
-    if (postRoute) {
-      const originHandler = postRoute.handler;
-      postRoute.handler = async (req, res) => {
-        const { name, bindedActionIds, description, friendlyName } = req.body;
-        if (!name) {
-          return res.status(400).json({ ok: false, error: "hook name is required" });
-        }
-        // 结构化写入
-        req.body.code = { name, bindedActionIds, description, friendlyName };
-        return originHandler(req, res);
-      };
-    }
+  // Hook 专属扩展：保存时自动结构化 JSON
+  const postRoute = routes.find((r) => r.path === "/api/hook" && r.method === "POST");
+  if (postRoute) {
+    const originHandler = postRoute.handler;
+    postRoute.handler = async (req, res) => {
+      const { id, bindedActionIds, description, friendlyName } = req.body;
+      if (!id) {
+        return res.status(400).json({ ok: false, error: "hook id is required" });
+      }
+      // JSONSource 会自动处理 JSON.stringify 和格式化缩进
+      req.body.raw = { name: id, bindedActionIds, description, friendlyName };
+      return originHandler(req, res);
+    };
+  }
 
-    return routes;
-  };
+  return routes;
+};

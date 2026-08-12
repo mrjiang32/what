@@ -19,7 +19,7 @@ const defconfig = {
 /**
  * @type {Logger}
  */
-const logger = global.scan.logger;
+const logger = new Logger("source");
 
 const getDir = (dir) => {
   return path.resolve(global.scan.workdir, dir);

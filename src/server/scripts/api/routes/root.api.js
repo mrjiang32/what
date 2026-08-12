@@ -13,5 +13,12 @@ export default () => {
         });
       },
     },
+        {
+      path: "/",
+      method: "GET",
+      handler: (req, res) => {
+        res.redirect(302, "/api");
+      },
+    },
   ];
 };
