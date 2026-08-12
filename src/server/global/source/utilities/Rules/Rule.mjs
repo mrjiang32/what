@@ -12,7 +12,14 @@ const types = Object.freeze({
 
 export class Rule {
   constructor() {
-    /** @type {Array<{id:string, conditioner:(v:any)=>boolean,[key:string]:any}>} */
+    /**
+     * @typedef {{
+     *   id:string,
+     *   conditioner:(v:any)=>boolean,
+     *   [key:string]: any
+     * }} RuleEntry
+     * @type {RuleEntry[]}
+     */
     this._rules = [];
   }
 
@@ -185,7 +192,8 @@ export class Rule {
   }
 
   /**
-   * 或逻辑，任意一条满足即通过
+   * 或逻辑：注意！作为规则链其中一条，**不是顶层二选一**
+   * 想要完整的 A | B，请使用 Rule.or([ruleA, ruleB]) 静态方法
    * @param {Rule[]} rules
    */
   or(rules) {
@@ -281,12 +289,46 @@ export class Rule {
   }
 
   /**
-   * 克隆当前规则实例，防止原对象被链式修改污染
+   * 允许值为 undefined；等价于 原规则 | undefined
+   * 会把当前整个规则包装一层or；调用后返回新clone实例，不修改原对象
+   */
+  optional() {
+    // clone 当前规则，然后用静态or组合自身 + undefined
+    return Rule.or([this.clone(), Rule.type("undefined")]);
+  }
+
+  /**
+   * 允许值为 null；等价于 原规则 | null
+   */
+  nullable() {
+    return Rule.or([this.clone(), Rule.type("null")]);
+  }
+
+  /**
+   * 克隆当前规则实例，递归克隆内部子Rule，防止原对象被链式修改污染
    * @returns {Rule}
    */
   clone() {
     const inst = new Rule();
-    inst._rules = this._rules.map(r => ({ ...r }));
+    inst._rules = this._rules.map(r => {
+      /** @type {RuleEntry} */
+      const copy = { ...r };
+
+      // 递归克隆嵌套Rule实例
+      if (copy.childRules instanceof Rule) {
+        copy.childRules = copy.childRules.clone();
+      }
+      if (Array.isArray(copy.childRules)) {
+        copy.childRules = copy.childRules.map(sub => sub instanceof Rule ? sub.clone() : sub);
+      }
+      if (copy.itemRule instanceof Rule) {
+        copy.itemRule = copy.itemRule.clone();
+      }
+      if (Array.isArray(copy.rules)) {
+        copy.rules = copy.rules.map(sub => sub.clone());
+      }
+      return copy;
+    });
     return inst;
   }
 
@@ -336,6 +378,17 @@ export class Rule {
 
   static instance(ctor) {
     return new Rule().instanceOf(ctor);
+  }
+
+  /**
+   * 顶层或：完整的 A | B | C 联合类型
+   * @param {Rule[]} rules
+   */
+  static or(rules) {
+    if (!Array.isArray(rules) || rules.some(r => !(r instanceof Rule))) {
+      throw new Error("Rule.or() expects array of Rule instances");
+    }
+    return new Rule().or(rules);
   }
 }
 

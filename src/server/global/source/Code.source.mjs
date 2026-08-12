@@ -65,8 +65,8 @@ export class CodeSource extends FileSource {
    * @param {CodeSourceConfig} config
    */
   constructor(config) {
-    // ✅ 把scanConfig透传给父类FileSource，父类直接接收ScanFileConfig扁平对象
-    super(config.scanConfig);
+    super(config);
+    this._logger = config.logger;
     this.injectTools = config.injectTools ?? {};
   }
 

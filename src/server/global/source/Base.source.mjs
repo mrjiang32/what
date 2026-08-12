@@ -1,4 +1,5 @@
 import { Logger } from '../utils/Logger.mjs';
+import chalk from 'chalk';
 
 /**
  * 基础数据源抽象类
@@ -22,7 +23,7 @@ class BaseSource {
      * @type {Logger | undefined}
      * @protected
      */
-    this._logger = undefined;
+    // this._logger = from.logger;
 
     /**
      * 内存缓存 Map<id, data>，保存加载过的数据
@@ -75,6 +76,13 @@ class BaseSource {
   async getReady() {
     const idList = await this._updateFromSource();
     this._dataSet = new Set(idList);
+    if (this._logger) {
+      this._logger.info(`Source: ${this._logger.name}`);
+      this._logger.info(`Scanning stats: ${this._dataSet.size} records`);
+      for (const id of this._dataSet.keys()) {
+        this._logger.info(chalk.gray(`- ${id}`));
+      }
+    }
     this._ready = true;
     return this;
   }

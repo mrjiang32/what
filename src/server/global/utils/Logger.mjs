@@ -70,9 +70,6 @@ async function init(level) {
   });
 
   reConfigure(level || "info");
-
-  const logger = newLogger("Logger");
-  // logger.debug("启动用时 " + chalk.green(Date.now() - now_time + " ms"));
 }
 
 function reConfigure(level) {
@@ -102,6 +99,7 @@ function reConfigure(level) {
 export class Logger {
   constructor(name) {
     this._inner = log4js.getLogger(name);
+    this.name = name;
   }
 
   trace(...args) { this._inner.trace(...args); }
