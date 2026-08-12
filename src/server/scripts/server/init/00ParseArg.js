@@ -16,5 +16,5 @@ export default async () => {
   });
   const logger = global.logger.getByContext("ParseArg");
   global.args = values;
-  logger.info(chalk.gray(`- ${JSON.stringify(global.args)}`));
+  logger.info(chalk.gray(` - ${JSON.stringify(global.args)}`));
 };

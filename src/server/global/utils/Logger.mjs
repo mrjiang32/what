@@ -8,7 +8,7 @@ const now_time = Date.now();
 // 对齐配置
 const LOG_ALIGN = {
   level_pad: 5, // 日志级别固定长度
-  name_pad: 30, // 分类名称固定长度
+  name_pad: 20, // 分类名称固定长度
   time_pad: 8, // 时间显示固定长度
 };
 

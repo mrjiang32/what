@@ -1,5 +1,5 @@
-import { Logger } from '../utils/Logger.mjs';
-import chalk from 'chalk';
+import { Logger } from "../utils/Logger.mjs";
+import chalk from "chalk";
 
 /**
  * 基础数据源抽象类
@@ -64,7 +64,7 @@ class BaseSource {
    */
   _assertReady() {
     if (!this._ready) {
-      throw new Error('BaseSource: 尚未调用 getReady(), 禁止执行数据源操作');
+      throw new Error("BaseSource: 尚未调用 getReady(), 禁止执行数据源操作");
     }
   }
 
@@ -77,10 +77,10 @@ class BaseSource {
     const idList = await this._updateFromSource();
     this._dataSet = new Set(idList);
     if (this._logger) {
-      this._logger.info(`Source: ${this._logger.name}`);
-      this._logger.info(`Scanning stats: ${this._dataSet.size} records`);
+      this._logger.debug(`Source: ${this._logger.name}`);
+      this._logger.debug(`Scanning stats: ${this._dataSet.size} records`);
       for (const id of this._dataSet.keys()) {
-        this._logger.info(chalk.gray(`- ${id}`));
+        this._logger.debug(chalk.gray(`- ${id}`));
       }
     }
     this._ready = true;
@@ -93,6 +93,23 @@ class BaseSource {
    */
   get ready() {
     return this._ready;
+  }
+
+  get source() {
+    return this._source;
+  }
+
+  /**
+   * 轻量级重载：仅刷新底层数据源的ID索引（_dataSet）
+   * 不会清空已加载的实体缓存（_dataMap），开销小于 getReady()
+   * @async
+   * @returns {Promise<this>}
+   */
+  async reload() {
+    this._assertReady();
+    const idList = await this._updateFromSource();
+    this._dataSet = new Set(idList);
+    return this;
   }
 
   /**

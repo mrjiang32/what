@@ -1,16 +1,14 @@
 import bodyParser from "body-parser";
-import globalenv from "../../global/globalenv.js"
+import global from "../../../global.js"
+
 const jsonParser = bodyParser.json({ limit: "10mb" });
 
-export default {
-  jsonParser: {
-    type: "expressMiddleWare",
-    job: (req, res, next) => {
-      const middleWareLog = globalenv.log;
+export default (req, res, next) => {
+      const logger = global.logger.getByContext("JSON")
       jsonParser(req, res, (err) => {
         if (err) {
           if (err.type === "entity.parse.failed") {
-            middleWareLog.error("Request Parser: 客户端JSON格式错误", err);
+            logger.error("Request Parser: 客户端JSON格式错误", err);
             return res.status(400).json({
               code: 400,
               msg: "JSON format error",
@@ -18,7 +16,7 @@ export default {
             });
           }
 
-          middleWareLog.error("Request Parser: 无法提取客户端JSON", err);
+          logger.error("Request Parser: 无法提取客户端JSON", err);
           return res.status(400).json({
             code: 400,
             msg: "Request body parsing failed",
@@ -27,10 +25,4 @@ export default {
         }
         next();
       });
-    },
-  },
-  bodyUrlDecode: {
-    type: "expressMiddleWare",
-    job: bodyParser.urlencoded({ extended: true }),
-  },
-};
+    }

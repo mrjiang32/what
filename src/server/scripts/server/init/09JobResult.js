@@ -1,20 +1,17 @@
-import chalk from "chalk";
-import conf from "../../utils/config.js";
 import utils from "../../utils/utils.js";
-import globalenv from "../../global/globalenv.js";
+import global from "../../../global.js";
+import sourceMain from "../../../global/main.js";
+import path from "path";
 
 const grayText = utils.grayText;
 
-export default {
-  jobResult: {
-    type: "init",
-    job: async () => {
-      const loader = globalenv.mainLoader;
-      const moduleList = loader.getModuleList();
-      globalenv.log.debug("MODULE 加载的模块列表:");
-      moduleList.forEach((module) => {
-        globalenv.log.debug(grayText(module));
-      });
-    },
-  },
+const getArray = async (type) =>  (await sourceMain.sources[type].source.toIdArray()).map(id => path.join(sourceMain.sources[type].source.source.dirPath, id))
+  
+export default async () => {
+  const moduleList = [].concat(await getArray("server/init"), await getArray("server/halt"))
+  const logger = global.logger.getByContext("JobResult");
+  logger.debug("Loaded Modules:");
+  moduleList.forEach((module) => {
+    logger.debug(grayText(module));
+  });
 };

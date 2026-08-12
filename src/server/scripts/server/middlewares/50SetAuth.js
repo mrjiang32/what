@@ -1,13 +1,8 @@
 import jwt from "jsonwebtoken";
-import globalenv from "../../global/globalenv.js";
+import global from "../../../global.js";
 
-/**
- * 鉴权中间件
- * 白名单接口不校验token；从Header Authorization读取Bearer token
- * 挂载 req.user = payload，鉴权失败直接返回401
- */
 function authMiddleware(req, res, next) {
-  let whiteList = globalenv.whiteList || [];
+  let whiteList = global.whiteList || [];
 
   // 仅对 /api 下接口生效
   if (!req.url.startsWith("/api")) {
@@ -18,7 +13,7 @@ function authMiddleware(req, res, next) {
     return next();
   }
 
-  const secret = globalenv.secret;
+  const secret = global.secret;
 
   let token = null;
   const authHeader = req.headers.authorization;
@@ -41,7 +36,7 @@ function authMiddleware(req, res, next) {
 
   try {
     const payload = jwt.verify(token, secret);
-    if(!globalenv.tokenMap.has(token)){
+    if(!global.tokenMap.has(token)){
       throw new Error("token无效");
     }
     req.user = payload; // 将用户信息挂载请求对象
@@ -58,9 +53,4 @@ function authMiddleware(req, res, next) {
   }
 }
 
-export default {
-  setAuth: {
-    type: "expressMiddleWare",
-    job: authMiddleware,
-  },
-};
+export default authMiddleware;

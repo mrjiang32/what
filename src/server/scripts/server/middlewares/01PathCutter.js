@@ -11,9 +11,4 @@ const pathCutter = (req, res, next) => {
   next();
 };
 
-export default {
-  mwPathCutter: {
-    type: "expressMiddleWare",
-    job: pathCutter,
-  },
-};
+export default pathCutter;

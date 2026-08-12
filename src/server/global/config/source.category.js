@@ -1,13 +1,13 @@
 import { FileSource } from "../source/File.source.mjs";
 import { JSONSource } from "../source/JSON.source.mjs";
 import { CodeSource } from "../source/Code.source.mjs";
-import { bus } from "../utils/SafeEventEmitter.js";
-import path from "path";
-import global from "../../global.js";
-import { Rule } from "../source/utilities/Rules/Rule.mjs";
 import { Logger } from "../utils/Logger.mjs";
+import { Rule } from "../source/utilities/Rules/Rule.mjs";
+import { bus } from "../utils/SafeEventEmitter.js";
+import global from "../../global.js";
+import path from "path";
+import chalk from "chalk";
 
-// 删掉 injectTools！！它不在ScanFileConfig schema，strictChild会直接校验失败
 const defconfig = {
   dirPath: "./",
   exts: [".mjs", ".js", ".cjs", ".json"],
@@ -27,10 +27,6 @@ const getDir = (dir) => {
 
 const moduleJobSchema = Rule.type("function");
 
-const moduleAPISchema = Rule.type("object").child({
-  generate: Rule.type("function"),
-});
-
 const getModuleJob = async (file, source, schema = moduleJobSchema) => {
   const mod = (await source.importModule(file)).default;
   if (!schema.test(mod)) {
@@ -45,7 +41,7 @@ const sources = {
       ...defconfig,
       dirPath: getDir("./server/init"),
       exts: [".mjs", ".js", ".cjs"],
-      logger: logger.getByContext("server/init"),
+      // logger: logger.getByContext("server/init"),
     }),
     calls: "sys:init",
     /**
@@ -53,11 +49,12 @@ const sources = {
      */
     additional: async (source) => {
       const idArray = await source.toIdArray();
-      console.log(idArray);
       for (const file of idArray) {
         const currentFile = file;
         bus.on("sys:init", async () => {
-          await (await getModuleJob(currentFile, source))();
+          await (
+            await getModuleJob(currentFile, source)
+          )();
         });
       }
     },
@@ -67,19 +64,20 @@ const sources = {
       ...defconfig,
       dirPath: getDir("./server/halt"),
       exts: [".mjs", ".js", ".cjs"],
-      logger: logger.getByContext("server/halt"),
+      // logger: logger.getByContext("server/halt"),
     }),
     calls: "sys:halt",
     /**
      * @param {CodeSource} source
      */
     additional: async (source) => {
-      const idArray = await source.toIdArray();
+      const idArray = (await source.toIdArray()).reverse();
       for (const file of idArray) {
         const currentFile = file;
         bus.on("sys:halt", async () => {
-          const mod = await getModuleJob(currentFile, source);
-          await mod.job();
+          await (
+            await getModuleJob(currentFile, source)
+          )();
         });
       }
     },
@@ -87,7 +85,7 @@ const sources = {
   "/api": {
     source: new CodeSource({
       ...defconfig,
-      dirPath: getDir("./api"),
+      dirPath: getDir("./api/routes"),
       exts: [".mjs", ".js", ".cjs"],
       logger: logger.getByContext("/api"),
     }),
@@ -97,12 +95,23 @@ const sources = {
      */
     additional: async (source) => {
       const idArray = await source.toIdArray();
+      const logger = global.logger.getByContext("LoadAPI");
       for (const file of idArray) {
         const currentFile = file;
         bus.on("api", async () => {
-          const mod = await getModuleJob(currentFile, source, moduleAPISchema);
-          const apiItems = await mod.generate();
-          global.api.push(...apiItems);
+          const mod = await getModuleJob(currentFile, source);
+          const apiItems = await mod();
+          for (const route of apiItems) {
+            global.server.app[route.method.toLowerCase()](
+              route.path,
+              route.handler,
+            );
+            logger.info(
+              chalk.grey(
+                ` - ${route.method.toUpperCase().padEnd(6)} ${route.path}`,
+              ),
+            );
+          }
         });
       }
     },
@@ -118,8 +127,7 @@ const sources = {
     /**
      * @param {JSONSource} source
      */
-    additional: async (source) => {
-    },
+    additional: async (source) => {},
   },
   "/custom/func": {
     source: new CodeSource({
@@ -132,7 +140,35 @@ const sources = {
     /**
      * @param {CodeSource} source
      */
+    additional: async (source) => {},
+  },
+  "/server/middlewares": {
+    source: new CodeSource({
+      ...defconfig,
+      dirPath: getDir("./server/middlewares"),
+      exts: [".mjs", ".js", ".cjs"],
+      logger: logger.getByContext("/server/middlewares"),
+    }),
+    calls: "sys:middlewares",
+    /**
+     * @param {CodeSource} source
+     */
     additional: async (source) => {
+      const idArray = await source.toIdArray();
+      const mwLogger = global.logger.getByContext("Middlewares");
+      for (const file of idArray) {
+        const currentFile = file;
+        bus.on("sys:middlewares", async () => {
+          const mod = await getModuleJob(currentFile, source);
+          // Assuming the exported job returns a valid Express/Connect middleware function
+          global.server.app.use(mod);
+          mwLogger.info(
+            chalk.grey(
+              ` - Middleware loaded from ${path.basename(currentFile)}`,
+            ),
+          );
+        });
+      }
     },
   },
 };

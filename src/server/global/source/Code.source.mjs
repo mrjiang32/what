@@ -80,7 +80,7 @@ export class CodeSource extends FileSource {
   async _getOneFromSource(id) {
     const absPath = this._getAbsolutePath(id);
     const fileUrl = pathToFileURL(absPath);
-    return { url: fileUrl };
+    return { url: fileUrl, raw: super._getOneFromSource(id) };
   }
 
   /**

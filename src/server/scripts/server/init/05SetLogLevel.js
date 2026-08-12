@@ -1,13 +1,9 @@
-import logger from "../../utils/logger.js";
-import globalenv from "../../global/globalenv.js";
+import global from "../../../global.js";
 
-export default {
-  banner: {
-    type: "init",
-    priority: 99,
-    job: async () => {
-      logger.reConfigure(globalenv.config.logLevel);
-      globalenv.log.info("LOGGER 重新调整日志等级为: " + globalenv.config.logLevel);
-    },
-  },
+export default async () => {
+  const logger = global.loggerMgr;
+  logger.reConfigure(global.config.logLevel);
+  global.logger
+    .getByContext("SetLogLevel")
+    .info("重新调整日志等级为: " + global.config.logLevel);
 };

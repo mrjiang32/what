@@ -2,13 +2,14 @@ import fs from "fs";
 import fsPromises from "fs/promises";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
-import utils from "./utils.js"
+import utils from "./utils.js";
 import { generateSalt, hashPassword } from "./passwd.js";
-import globalenv from "../../global/globalenv.js"
+import global from "../../global.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const CONFIG_PATH = path.resolve(__dirname, "config.json");
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
+// const CONFIG_PATH = path.resolve(__dirname, "config.json");
+const CONFIG_PATH = path.join(global.scan.dir, "config", "config.json");
 
 const deepFreeze = utils.deepFreeze;
 const deepMerge = utils.deepMerge;
@@ -22,16 +23,17 @@ const DEFAULT_CONFIG = deepFreeze({
     host: "127.0.0.1",
   },
   users: {
-    "admin": {
+    admin: {
       role: "admin",
       shadow: hashPassword(defaultPassword, defaultSalt),
       salt: defaultSalt,
       defaultPasswd: defaultPassword,
-    }
+    },
   },
   createdDate: Date.now(),
   eula: true,
   logLevel: "info",
+  secret: crypto.randomUUID(),
 });
 
 export default Object.freeze({
@@ -47,7 +49,10 @@ export default Object.freeze({
     }
     // console.log(await utils.jsonSimpleR(CONFIG_PATH));
     // console.log(deepMerge(DEFAULT_CONFIG, await utils.jsonSimpleR(CONFIG_PATH)));
-    return await deepMerge(DEFAULT_CONFIG, await utils.jsonSimpleR(CONFIG_PATH));
+    return await deepMerge(
+      DEFAULT_CONFIG,
+      await utils.jsonSimpleR(CONFIG_PATH),
+    );
   },
   /**
    * 异步保存配置（推荐使用）
@@ -62,7 +67,10 @@ export default Object.freeze({
    */
   createFile: async () => {
     try {
-      await fsPromises.access(CONFIG_PATH, fs.constants.R_OK | fs.constants.W_OK);
+      await fsPromises.access(
+        CONFIG_PATH,
+        fs.constants.R_OK | fs.constants.W_OK,
+      );
     } catch (e) {
       await utils.jsonSimpleW(CONFIG_PATH, DEFAULT_CONFIG);
     }
@@ -77,7 +85,7 @@ export default Object.freeze({
    * 配置文件所在目录
    * @type {string}
    */
-  configDirPath: __dirname,
+  configDirPath: path.dirname(CONFIG_PATH),
 
   defaultPassword,
 });

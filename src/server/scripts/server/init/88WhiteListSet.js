@@ -1,17 +1,9 @@
-import globalenv from "../../global/globalenv.js";
+import global from "../../../global.js";
 
-export default {
-  whiteList: {
-    type: "init",
-    job: () => {
-      if (Array.isArray(globalenv.whiteList)) {
-        globalenv.whiteList = [
-          ...globalenv.whiteList,
-          "/api/auth/login", // 获取token登录接口
-        ];
-      } else {
-        globalenv.whiteList = ["/api/auth/login"];
-      } // 获取token登录接口
-    },
-  },
+export default () => {
+  if (Array.isArray(global.whiteList)) {
+    global.whiteList = [...global.whiteList, "/api/auth/login"];
+  } else {
+    global.whiteList = ["/api/auth/login"];
+  }
 };

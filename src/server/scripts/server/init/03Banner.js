@@ -9,17 +9,12 @@ const logo = `I8,        8        ,8I  88                                 ad8888
     \`8a8'     \`8a8'      88       88  88,    ,88    88,        aa       
      \`8'       \`8'       88       88  \`"8bbdP"Y8    "Y888      88       `;
 
-export default {
-  banner: {
-    type: "init",
-    job: async () => {
-      console.log(chalk.green(logo));
-      console.log(
-        `\n${chalk.yellowBright("TIME")}` +
-          `     ${chalk.green("TYPE")}` +
-          `  ${chalk.cyanBright("SENDER")}` +
-          `          ${chalk.blue("MESSAGE")}`,
-      );
-    },
-  },
+export default async () => {
+  console.log(chalk.green(logo));
+  console.log(
+    `\n${chalk.yellowBright("TIME")}` +
+      `     ${chalk.green("TYPE")}` +
+      `  ${chalk.cyanBright("SENDER")}` +
+      `               ${chalk.blue("MESSAGE")}`,
+  );
 };
