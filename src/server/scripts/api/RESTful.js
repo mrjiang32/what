@@ -12,9 +12,6 @@ export async function createModuleRoutes({ apiPrefix, source, exec }) {
   const isValidName = (name) => /^[a-zA-Z0-9_-]+$/.test(name);
   const toRelPath = (name) => `${name}.js`;
 
-  // 确保数据源已就绪
-  await source.getReady();
-
   /**
    * 内部方法：校验语法并写入底层数据源
    */

@@ -96,6 +96,9 @@ const sources = {
     additional: async (source) => {
       const idArray = await source.toIdArray();
       const logger = global.logger.getByContext("LoadAPI");
+      bus.on("api", async () => {
+        logger.info("加载路由列表：");
+      });
       for (const file of idArray) {
         const currentFile = file;
         bus.on("api", async () => {
@@ -127,7 +130,9 @@ const sources = {
     /**
      * @param {JSONSource} source
      */
-    additional: async (source) => {},
+    additional: async (source) => {
+      // await source.getReady();
+    },
   },
   "/custom/func": {
     source: new CodeSource({
@@ -140,7 +145,9 @@ const sources = {
     /**
      * @param {CodeSource} source
      */
-    additional: async (source) => {},
+    additional: async (source) => {
+      // await source.getReady();
+    },
   },
   "/server/middlewares": {
     source: new CodeSource({
@@ -156,15 +163,18 @@ const sources = {
     additional: async (source) => {
       const idArray = await source.toIdArray();
       const mwLogger = global.logger.getByContext("Middlewares");
+      bus.on("sys:middlewares", async () => {
+        mwLogger.debug("加载的中间件列表：");
+      });
       for (const file of idArray) {
         const currentFile = file;
         bus.on("sys:middlewares", async () => {
           const mod = await getModuleJob(currentFile, source);
           // Assuming the exported job returns a valid Express/Connect middleware function
           global.server.app.use(mod);
-          mwLogger.info(
+          mwLogger.debug(
             chalk.grey(
-              ` - Middleware loaded from ${path.basename(currentFile)}`,
+              ` - 加载中间件: ${path.join(global.scan.workdir, "./server/middlewares", file)}`,
             ),
           );
         });

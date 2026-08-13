@@ -66,7 +66,6 @@ export class CodeSource extends FileSource {
    */
   constructor(config) {
     super(config);
-    this._logger = config.logger;
     this.injectTools = config.injectTools ?? {};
   }
 

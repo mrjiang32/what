@@ -16,5 +16,6 @@ export default async () => {
   });
   const logger = global.logger.getByContext("ParseArg");
   global.args = values;
+  logger.info("读取命令行参数");
   logger.info(chalk.gray(` - ${JSON.stringify(global.args)}`));
 };

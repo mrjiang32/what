@@ -4,6 +4,7 @@ import global from "../../../global.js";
 
 export default async () => {
   let log = global.logger.getByContext("ReadConfig");
+  log.info("读取配置文件");
   log.info(
       chalk.gray(
         ` - 从"${chalk.blueBright(global.args["config-file"] || config.configFilePath)}"读取配置文件`,
@@ -13,7 +14,7 @@ export default async () => {
   try {
     global.config = await config.readConfigAsync();
   } catch (err) {
-    log.error("CONFIG " + `读取配置文件出现错误: ${err}`);
+    log.error(`读取配置文件出现错误: ${err}`);
     global.config = config.defaultConfig;
   }
   if (global.args?.debug) {

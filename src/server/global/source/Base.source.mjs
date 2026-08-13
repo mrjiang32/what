@@ -23,7 +23,7 @@ class BaseSource {
      * @type {Logger | undefined}
      * @protected
      */
-    // this._logger = from.logger;
+    this._logger = from.logger;
 
     /**
      * 内存缓存 Map<id, data>，保存加载过的数据
@@ -80,7 +80,7 @@ class BaseSource {
       this._logger.debug(`Source: ${this._logger.name}`);
       this._logger.debug(`Scanning stats: ${this._dataSet.size} records`);
       for (const id of this._dataSet.keys()) {
-        this._logger.debug(chalk.gray(`- ${id}`));
+        this._logger.debug(chalk.gray(` - ${id}`));
       }
     }
     this._ready = true;

@@ -96,6 +96,8 @@ function reConfigure(level) {
   });
 }
 
+const blankFunction = () => {};
+
 export class Logger {
   constructor(name) {
     this._inner = log4js.getLogger(name);
@@ -116,6 +118,28 @@ export class Logger {
 
   get category() {
     return this._inner.category;
+  }
+
+  mute() {
+    if (this._muted) return this;
+    this._muted = true;
+    this._mutedinner = this._inner;
+    this._inner = {
+      trace: blankFunction,
+      debug: blankFunction,
+      info: blankFunction,
+      warn: blankFunction,
+      error: blankFunction,
+      fatal: blankFunction,
+    }
+    return this;
+  }
+
+  unmute() {
+    if (!this._muted) return this;
+    this._muted = false;
+    this._inner = this._mutedinner;
+    return this;
   }
 }
 

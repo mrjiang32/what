@@ -16,6 +16,6 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "node --trace-warnings --trace-deprecation ./launcher.js --debug"
+    "dev": "node --trace-warnings --trace-deprecation ./index.js --debug"
   }
 }

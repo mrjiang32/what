@@ -10,6 +10,8 @@ jspm_packages/
 # Build output
 # ======================================
 src/client/dist/
+src/server/config/*.json
+src/server/scripts/custom/*
 dist/
 build/
 out/
