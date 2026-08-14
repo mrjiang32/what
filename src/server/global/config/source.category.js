@@ -8,6 +8,29 @@ import global from "../../global.js";
 import path from "path";
 import chalk from "chalk";
 
+export const formatTime = (ms, locale = "zh-cn") => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const parts = [];
+  if (locale === "en-us") {
+    if (days > 0) parts.push(`${days} day${days === 1 ? "" : "s"}`);
+    if (hours > 0) parts.push(`${hours} hour${hours === 1 ? "" : "s"}`);
+    if (minutes > 0) parts.push(`${minutes} min`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds} sec`);
+  } else if (locale === "zh-cn") {
+    if (days > 0) parts.push(`${days} 天`);
+    if (hours > 0) parts.push(`${hours} 小时`);
+    if (minutes > 0) parts.push(`${minutes} 分钟`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds} 秒`);
+  }
+
+  return parts.join(" ");
+};
+
 const defconfig = {
   dirPath: "./",
   exts: [".mjs", ".js", ".cjs", ".json"],
@@ -25,7 +48,12 @@ const getDir = (dir) => {
   return path.resolve(global.scan.workdir, dir);
 };
 
-const moduleJobSchema = Rule.type("function");
+const moduleJobSchema = Rule.function();
+// timer 导出对象校验 schema: { interval: number, task: Function }
+const timerJobSchema = Rule.object({
+  interval: Rule.number(),
+  task: Rule.function(),
+});
 
 const getModuleJob = async (file, source, schema = moduleJobSchema) => {
   const mod = (await source.importModule(file)).default;
@@ -41,7 +69,6 @@ const sources = {
       ...defconfig,
       dirPath: getDir("./server/init"),
       exts: [".mjs", ".js", ".cjs"],
-      // logger: logger.getByContext("server/init"),
     }),
     calls: "sys:init",
     /**
@@ -64,7 +91,6 @@ const sources = {
       ...defconfig,
       dirPath: getDir("./server/halt"),
       exts: [".mjs", ".js", ".cjs"],
-      // logger: logger.getByContext("server/halt"),
     }),
     calls: "sys:halt",
     /**
@@ -82,6 +108,73 @@ const sources = {
       }
     },
   },
+
+  /**
+   * server/timer
+   * 文件导出: { interval: number, task: async ()=>void }
+   * interval >0: setInterval 自动轮询； interval ===0 仅启动执行一次
+   * sys:halt 自动清除全部定时器句柄
+   */
+  "server/timer": {
+    source: new CodeSource({
+      ...defconfig,
+      dirPath: getDir("./server/timer"),
+      exts: [".mjs", ".js", ".cjs"],
+      logger: logger.getByContext("server/timer"),
+    }),
+    calls: "sys:timer",
+    /**
+     * @param {CodeSource} source
+     */
+    additional: async (source) => {
+      const idArray = await source.toIdArray();
+      const timerLogger = global.logger.getByContext("Timer");
+      // 保存所有定时器id，halt时销毁
+      /** @type {NodeJS.Timeout[]} */
+      const timerHandles = [];
+
+      // sys:init 时初始化所有timer任务
+      bus.on("sys:init", async () => {
+        for (const file of idArray) {
+          try {
+            const timerOpt = await getModuleJob(file, source, timerJobSchema);
+            const { interval, task } = timerOpt;
+
+            timerLogger.debug(chalk.grey(`加载timer任务 ${file}, interval=${formatTime(interval)}`));
+
+            // interval=0：仅执行一次
+            if (interval === 0) {
+              await task().catch(err => timerLogger.error(`[timer:${file}] task run once error`, err));
+              continue;
+            }
+
+            // >0 启动轮询定时器
+            const handle = setInterval(async () => {
+              try {
+                await task();
+              } catch (err) {
+                timerLogger.error(`[timer:${file}] task error`, err);
+              }
+            }, interval);
+            timerHandles.push(handle);
+
+          } catch (err) {
+            timerLogger.error(`加载timer文件失败 ${file}`, err);
+          }
+        }
+      });
+
+      // sys:halt 清理全部定时器，防止进程无法退出
+      bus.on("sys:halt", async () => {
+        timerLogger.debug(`清理 ${timerHandles.length} 个timer定时器`);
+        for (const h of timerHandles) {
+          clearInterval(h);
+        }
+        timerHandles.length = 0;
+      });
+    },
+  },
+
   "/api": {
     source: new CodeSource({
       ...defconfig,
@@ -97,7 +190,7 @@ const sources = {
       const idArray = await source.toIdArray();
       const logger = global.logger.getByContext("LoadAPI");
       bus.on("api", async () => {
-        logger.info("加载路由列表：");
+        logger.debug("加载路由列表：");
       });
       for (const file of idArray) {
         const currentFile = file;
@@ -109,7 +202,7 @@ const sources = {
               route.path,
               route.handler,
             );
-            logger.info(
+            logger.debug(
               chalk.grey(
                 ` - ${route.method.toUpperCase().padEnd(6)} ${route.path}`,
               ),
@@ -170,7 +263,6 @@ const sources = {
         const currentFile = file;
         bus.on("sys:middlewares", async () => {
           const mod = await getModuleJob(currentFile, source);
-          // Assuming the exported job returns a valid Express/Connect middleware function
           global.server.app.use(mod);
           mwLogger.debug(
             chalk.grey(

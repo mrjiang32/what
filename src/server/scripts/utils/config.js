@@ -1,34 +1,22 @@
 import fs from "fs";
 import fsPromises from "fs/promises";
 import path from "path";
-import { fileURLToPath, pathToFileURL } from "url";
 import utils from "./utils.js";
 import { generateSalt, hashPassword } from "./passwd.js";
 import global from "../../global.js";
 
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-// const CONFIG_PATH = path.resolve(__dirname, "config.json");
-const CONFIG_PATH = path.join(global.scan.dir, "config", "config.json");
+const CONFIG_DIR = path.join(global.scan.dir, "config");
+const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
+const USERS_PATH = path.join(CONFIG_DIR, "users.json");
 
 const deepFreeze = utils.deepFreeze;
 const deepMerge = utils.deepMerge;
 
-const defaultSalt = generateSalt();
-const defaultPassword = generateSalt();
-
+// 服务配置模板，已经移除 users
 const DEFAULT_CONFIG = deepFreeze({
   server: {
     port: 3000,
     host: "127.0.0.1",
-  },
-  users: {
-    admin: {
-      role: "admin",
-      shadow: hashPassword(defaultPassword, defaultSalt),
-      salt: defaultSalt,
-      defaultPasswd: defaultPassword,
-    },
   },
   createdDate: Date.now(),
   eula: true,
@@ -36,36 +24,78 @@ const DEFAULT_CONFIG = deepFreeze({
   secret: crypto.randomUUID(),
 });
 
+// 用户默认模板：仅首次生成users.json使用
+function createDefaultUserObject() {
+  const defaultSalt = generateSalt();
+  const defaultPassword = generateSalt();
+  return {
+    admin: {
+      role: "admin",
+      shadow: hashPassword(defaultPassword, defaultSalt),
+      salt: defaultSalt,
+      defaultPasswd: defaultPassword, // 明文默认密码，仅首次写入文件；加载到内存后会delete
+    },
+  };
+}
+
 export default Object.freeze({
   /**
-   * 异步读取配置（推荐使用）
-   * @type {typeof rereadConfigAsync}
+   * 异步读取服务配置 config.json
    */
   readConfigAsync: async () => {
+    // 确保配置目录存在
+    await fsPromises.mkdir(CONFIG_DIR, { recursive: true });
     try {
       await fsPromises.access(CONFIG_PATH);
     } catch (err) {
       await utils.jsonSimpleW(CONFIG_PATH, DEFAULT_CONFIG);
     }
-    // console.log(await utils.jsonSimpleR(CONFIG_PATH));
-    // console.log(deepMerge(DEFAULT_CONFIG, await utils.jsonSimpleR(CONFIG_PATH)));
-    return await deepMerge(
-      DEFAULT_CONFIG,
-      await utils.jsonSimpleR(CONFIG_PATH),
-    );
+    const raw = await utils.jsonSimpleR(CONFIG_PATH);
+    return deepMerge(DEFAULT_CONFIG, raw);
   },
+
   /**
-   * 异步保存配置（推荐使用）
-   * @type {typeof saveConfigAsync}
+   * 异步读取用户配置 users.json
+   */
+  readUsersAsync: async () => {
+    await fsPromises.mkdir(CONFIG_DIR, { recursive: true });
+    try {
+      await fsPromises.access(USERS_PATH);
+    } catch (err) {
+      // 文件不存在，生成默认管理员用户
+      const defaultUsers = createDefaultUserObject();
+      await utils.jsonSimpleW(USERS_PATH, defaultUsers);
+    }
+    const userData = await utils.jsonSimpleR(USERS_PATH);
+
+    return userData;
+  },
+
+  /**
+   * 保存服务配置 config.json
+   * @param {object} data
    */
   saveConfigAsync: async (data) => {
-    await utils.jsonSimpleW(CONFIG_PATH, deepMerge(DEFAULT_CONFIG, data));
+    await fsPromises.mkdir(CONFIG_DIR, { recursive: true });
+    const merged = deepMerge(DEFAULT_CONFIG, data);
+    await utils.jsonSimpleW(CONFIG_PATH, merged);
   },
+
   /**
-   * 默认配置文件完整路径
-   * @type {string}
+   * 保存用户配置 users.json
+   * @param {object} usersObject
+   */
+  saveUsersAsync: async (usersObject) => {
+    await fsPromises.mkdir(CONFIG_DIR, { recursive: true });
+    await utils.jsonSimpleW(USERS_PATH, usersObject);
+  },
+
+  /**
+   * 创建配置目录+两个配置文件（初始化）
    */
   createFile: async () => {
+    await fsPromises.mkdir(CONFIG_DIR, { recursive: true });
+    // config.json
     try {
       await fsPromises.access(
         CONFIG_PATH,
@@ -74,18 +104,20 @@ export default Object.freeze({
     } catch (e) {
       await utils.jsonSimpleW(CONFIG_PATH, DEFAULT_CONFIG);
     }
+    // users.json
+    try {
+      await fsPromises.access(
+        USERS_PATH,
+        fs.constants.R_OK | fs.constants.W_OK,
+      );
+    } catch (e) {
+      const defaultUsers = createDefaultUserObject();
+      await utils.jsonSimpleW(USERS_PATH, defaultUsers);
+    }
   },
-  configFilePath: CONFIG_PATH,
-  /**
-   * 默认配置模板
-   * @type {typeof DEFAULT_CONFIG}
-   */
-  defaultConfig: DEFAULT_CONFIG,
-  /**
-   * 配置文件所在目录
-   * @type {string}
-   */
-  configDirPath: path.dirname(CONFIG_PATH),
 
-  defaultPassword,
+  configFilePath: CONFIG_PATH,
+  usersFilePath: USERS_PATH,
+  defaultConfig: DEFAULT_CONFIG,
+  configDirPath: CONFIG_DIR,
 });

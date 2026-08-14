@@ -10,7 +10,7 @@ const getArray = async (type) =>  (await sourceMain.sources[type].source.toIdArr
   
 export default async () => {
   const moduleList = [].concat(await getArray("server/init"), await getArray("server/halt"))
-  const logger = global.logger.getByContext("JobResult");
+  const logger = global.logger.getByContext("Modules");
   logger.debug("加载的模块列表：");
   moduleList.forEach((module) => {
     logger.debug(chalk.gray(` - 加载内置模块：${module}`));

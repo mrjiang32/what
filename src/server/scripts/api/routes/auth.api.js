@@ -5,6 +5,8 @@ import {
   hashPassword,
   generateSalt,
 } from "../../utils/passwd.js";
+// 导入config模块，用于保存users.json
+import config from "../../utils/config.js";
 
 // ========== 通用工具函数 ==========
 /** 从请求头提取 Bearer Token */
@@ -40,7 +42,7 @@ function signAccessToken(user) {
   assertExists(user.username, "User `username` property not found");
   assertExists(user.password, "User `password` property not found");
 
-  const userConfig = global.config.users[user.username];
+  const userConfig = global.users[user.username];
   if (!userConfig) throw new Error("Password or username not match");
 
   const isValid = verifyPassword(
@@ -50,14 +52,15 @@ function signAccessToken(user) {
   );
   if (!isValid) throw new Error("Password or username not match");
 
-  return jwt.sign({ id: user.username, role: "default" }, global.secret, {
+  return jwt.sign({ id: user.username, role: userConfig.role ?? "default" }, global.secret, {
     expiresIn: "2h",
   });
 }
 
 /** 刷新 Token（无需密码，仅校验 Token 存在性） */
 function refreshAccessToken(username) {
-  return jwt.sign({ id: username, role: "default" }, global.secret, {
+  const userConfig = global.users[username];
+  return jwt.sign({ id: username, role: userConfig?.role ?? "default" }, global.secret, {
     expiresIn: "2h",
   });
 }
@@ -94,10 +97,10 @@ export default () => {
           if (!username) {
             return res.status(401).json({ ok: false, error: "Invalid token" });
           }
-          // ✅ 校验通过，返回用户信息
+          const userInfo = global.users[username];
           res.status(200).json({
             ok: true,
-            user: { username },
+            user: { username, role: userInfo?.role ?? "default" },
           });
         } catch (error) {
           res.status(401).json({ ok: false, error: "Unauthorized" });
@@ -155,7 +158,7 @@ export default () => {
     {
       path: "/api/auth/change-password",
       method: "POST",
-      handler: (req, res) => {
+      handler: async (req, res) => {
         try {
           const token = extractToken(req);
           const username = global.tokenMap.get(token);
@@ -175,8 +178,7 @@ export default () => {
             throw new Error("New password cannot be the same as old password");
           }
 
-          // 校验原密码
-          const userConfig = global.config.users[username];
+          const userConfig = global.users[username];
           const isOldValid = verifyPassword(
             password,
             userConfig.salt,
@@ -188,7 +190,11 @@ export default () => {
           const newSalt = generateSalt();
           userConfig.salt = newSalt;
           userConfig.shadow = hashPassword(newPassword, newSalt);
-          delete userConfig.defaultPassword;
+
+          delete userConfig.defaultPasswd;
+
+          // 关键：持久化回 users.json
+          await config.saveUsersAsync(global.users);
 
           global.log.info(`用户 ${username} 修改密码成功`);
           res.status(200).json({ ok: true });
@@ -202,7 +208,7 @@ export default () => {
     {
       path: "/api/auth/new-user",
       method: "POST",
-      handler: (req, res) => {
+      handler: async (req, res) => {
         try {
           const { username, password, confirmPassword } = req.body;
           assertExists(username, "Username not found");
@@ -214,14 +220,15 @@ export default () => {
             "Password and confirm password not match",
           );
 
-          if (global.config.users[username]) {
+          if (global.users[username]) {
             throw new Error("Username already exists");
           }
 
           const salt = generateSalt();
           const shadow = hashPassword(password, salt);
-          global.config.users[username] = { salt, shadow };
+          global.users[username] = { salt, shadow, role: "user" };
 
+          await config.saveUsersAsync(global.users);
           global.log.info(`创建新用户: ${username}`);
           res.status(200).json({ ok: true });
         } catch (err) {

@@ -77,8 +77,8 @@ class BaseSource {
     const idList = await this._updateFromSource();
     this._dataSet = new Set(idList);
     if (this._logger) {
-      this._logger.debug(`Source: ${this._logger.name}`);
-      this._logger.debug(`Scanning stats: ${this._dataSet.size} records`);
+      this._logger.debug(`扫描数据源: ${chalk.gray(this._logger.name)}`);
+      this._logger.debug(`扫描统计: ${chalk.yellow(this._dataSet.size)} 条记录`);
       for (const id of this._dataSet.keys()) {
         this._logger.debug(chalk.gray(` - ${id}`));
       }

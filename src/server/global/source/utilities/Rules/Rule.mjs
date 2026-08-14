@@ -390,6 +390,30 @@ export class Rule {
     }
     return new Rule().or(rules);
   }
+
+  static object(child) {
+    return Rule.type("object").child(child);
+  }
+
+  static function() {
+    return Rule.type("function");
+  }
+
+  static number() {
+    return Rule.type("number");
+  }
+
+  static string() {
+    return Rule.type("string");
+  }
+
+  static boolean() {
+    return Rule.type("boolean");
+  }
+
+  static array(type) {
+    return Rule.type("array").items(Rule.type(type));
+  }
 }
 
 export default () => {
