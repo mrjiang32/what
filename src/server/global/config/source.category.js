@@ -76,14 +76,58 @@ const sources = {
      */
     additional: async (source) => {
       const idArray = await source.toIdArray();
+
+      // 1. 按优先级分组
+      const priorityMap = new Map();
       for (const file of idArray) {
-        const currentFile = file;
-        bus.on("sys:init", async () => {
-          await (
-            await getModuleJob(currentFile, source)
-          )();
-        });
+        const match = file.match(/^(\d+)/);
+        const priority = match ? match[1] : "99";
+        if (!priorityMap.has(priority)) {
+          priorityMap.set(priority, []);
+        }
+        priorityMap.get(priority).push(file);
       }
+
+      const sortedPriorities = Array.from(priorityMap.keys()).sort();
+      const registeredTasks = new Set();
+
+      // 2. 构建按优先级排序的任务组
+      const priorityGroups = [];
+      for (const priority of sortedPriorities) {
+        const filesInPriority = priorityMap.get(priority);
+
+        // 去重并生成任务函数
+        const tasks = filesInPriority
+          .filter((file) => {
+            if (registeredTasks.has(file)) return false;
+            registeredTasks.add(file);
+            return true;
+          })
+          .map((currentFile) => async () => {
+            const job = await getModuleJob(currentFile, source);
+            await job();
+          });
+
+        if (tasks.length > 0) {
+          priorityGroups.push(tasks);
+        }
+      }
+
+      // 3. 仅注册一个 sys:init 监听器，绝不在此处 await
+      bus.on("sys:init", async () => {
+        // 当 sys:init 触发时，按优先级顺序执行
+        for (const tasks of priorityGroups) {
+          // 同一优先级内的任务并行执行
+          const results = await Promise.allSettled(tasks.map((task) => task()));
+
+          // 错误隔离：打印失败的任务，但不中断后续流程
+          for (const result of results) {
+            if (result.status === "rejected") {
+              logger.error(`[sys:init] Parallel task failed:`, result.reason);
+            }
+          }
+        }
+      });
     },
   },
   /**
@@ -192,9 +236,6 @@ const sources = {
     additional: async (source) => {
       const idArray = await source.toIdArray();
       const logger = global.logger.getByContext("LoadAPI");
-      bus.on("api", async () => {
-        logger.debug("加载路由列表：");
-      });
       for (const file of idArray) {
         const currentFile = file;
         bus.on("api", async () => {
@@ -206,8 +247,9 @@ const sources = {
               route.handler,
             );
             logger.debug(
+              chalk.underline("设置路由") +
               chalk.grey(
-                ` - ${route.method.toUpperCase().padEnd(6)} ${route.path}`,
+                `  ${route.method.toUpperCase().padEnd(6)} ${route.path}`,
               ),
             );
           }
@@ -259,17 +301,15 @@ const sources = {
     additional: async (source) => {
       const idArray = await source.toIdArray();
       const mwLogger = global.logger.getByContext("Middlewares");
-      bus.on("sys:middlewares", async () => {
-        mwLogger.debug("加载的中间件列表：");
-      });
       for (const file of idArray) {
         const currentFile = file;
         bus.on("sys:middlewares", async () => {
           const mod = await getModuleJob(currentFile, source);
           global.server.app.use(mod);
           mwLogger.debug(
+            chalk.underline("设置中间件") +
             chalk.grey(
-              ` - 加载中间件: ${path.join(global.scan.workdir, "./server/middlewares", file)}`,
+              `  ${path.join(global.scan.workdir, "./server/middlewares", file)}`,
             ),
           );
         });

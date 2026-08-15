@@ -2,9 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/provider";
 import DefaultLayout from "@/layouts/default";
-// 只用基础组件，API 最稳定
 import { Card, Input, Button } from "@heroui/react";
-import axios from "axios";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -36,12 +34,17 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await axios.post(
-        "/api/auth/login",
-        { username, password },
-        { withCredentials: true }
-      );
-      const data = res.data;
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username,
+          password,
+        }),
+      });
+      const data = await res.json();
 
       if (data.ok) {
         login(data.token, data.username);

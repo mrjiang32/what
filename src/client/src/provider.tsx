@@ -25,6 +25,7 @@ type AuthAction =
 interface AuthContextType extends AuthState {
   login: (token: string, userInfo: UserInfo) => void;
   logout: () => void;
+  state: AuthState
 }
 
 const initialState: AuthState = {
@@ -134,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         ...state,
+        state,
         login,
         logout,
       }}

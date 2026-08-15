@@ -1,4 +1,8 @@
-export function toPlainObject(input, allowFunction = false, allowSymbol = false) {
+export function toPlainObject(
+  input,
+  allowFunction = false,
+  allowSymbol = false,
+) {
   // 基础类型直接返回
   if (input === null || typeof input !== "object") {
     return input;
@@ -95,8 +99,6 @@ export class SecureObject {
   #_cachedPlain;
 
   get value() {
-    if (!this.ok) return null;
-
     // 不是对象不需要清洗，直接返回原始值
     if (this.from === "plain" || this.from === "json") {
       return this.#_payload;
@@ -113,10 +115,11 @@ export function SecureUse(owner, property) {
   const desc = Object.getOwnPropertyDescriptor(owner, property);
   if (desc) {
     if (typeof desc.get === "function" || typeof desc.set === "function") {
-      // 将错误作为payload封装，不throw
       return new SecureObject(
-        { error: `SecureUse: property "${String(property)}" contains getter/setter accessor, rejected` },
-        false
+        {
+          error: `SecureUse: property "${String(property)}" contains getter/setter accessor, rejected`,
+        },
+        false,
       );
     }
     const rawVal = desc.value;

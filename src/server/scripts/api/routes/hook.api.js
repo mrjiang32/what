@@ -72,6 +72,7 @@ export default async () => {
         };
       });
     },
+    ext: "json"
   });
 
   // Hook 专属扩展：保存时自动结构化 JSON

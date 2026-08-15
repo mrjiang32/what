@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { Logger } from "./Logger.mjs";
 
-const busLog = new Logger("SEventEmitter").mute();
+const busLog = new Logger("SEventEmitter");
 
 export class SafeEventEmitter extends EventEmitter {
   /**

@@ -84,8 +84,12 @@ export default () => {
       method: "POST",
       handler: (req, res) => {
         try {
-          const { username } = req.body;
+          const username = req.body?.username;
 
+          if(!global.users[username]) {
+            throw new Error("User does not exist.");
+          }
+          
           // 登录前：清除该用户所有旧的 token
           for (const [token, user] of global.auth.tokenMap.entries()) {
             if (user === username) {

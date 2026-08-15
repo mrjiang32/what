@@ -6,11 +6,12 @@ import { FileSource } from "../../global/source/File.source.mjs";
  * @param {Object} options
  * @param {string} options.apiPrefix - API 路由前缀
  * @param {FileSource} options.source - 文件数据源实例
+ * @param {string} options.ext
  * @param {Function} [options.exec] - 执行模块的回调 (id, body) => result
  */
-export async function createModuleRoutes({ apiPrefix, source, exec }) {
+export async function createModuleRoutes({ apiPrefix, source, exec, ext }) {
   const isValidName = (name) => /^[a-zA-Z0-9_-]+$/.test(name);
-  const toRelPath = (name) => `${name}.js`;
+  const toRelPath = (name) => `${name}.${ext}`;
 
   /**
    * 内部方法：校验语法并写入底层数据源

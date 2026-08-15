@@ -33,6 +33,7 @@ export default function responseLogger(req, res, next) {
       request: req.body,
       headers: req.headers,
       response: responseBody,
+      err: res.$error
     }, null, 2));
   });
 

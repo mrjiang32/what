@@ -205,6 +205,7 @@ export class CodeSource extends FileSource {
     const ctx = vm.createContext({ params, ...localSandbox });
     vm.runInContext(source, ctx, { filename: absPath, displayErrors: true });
     return SecureUse(ctx, '$RETURN').value;
+    // return ctx.$RETURN;
   }
 
   /**

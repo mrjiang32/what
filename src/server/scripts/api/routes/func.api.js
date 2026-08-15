@@ -14,7 +14,7 @@ export const exec = async (relPath, body) => {
   if (!source.has(relPath)) {
     throw new Error(`${relPath} Function not found.`);
   }
-  // 假设 source 本身提供了 runModule 方法（如 VmScriptLoader 等）
+  
   return await source.runModule(relPath, body.params);
 };
 
@@ -23,5 +23,6 @@ export default async () => {
     apiPrefix: "/api/func",
     source,
     exec,
+    ext: "js"
   });
 };
