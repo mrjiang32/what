@@ -15,4 +15,10 @@ export default {
   },
   startTime: 0,
   bus,
+  args: null,
+  auth: {
+    secret: null,
+    tokenMap: new Map(),
+  },
+  config: null,
 };

@@ -18,8 +18,13 @@ const logger = global.logger.getByContext("Access");
 
 export default (req, res, next) => {
   res.on("finish", () => {
-    logger.debug(
-      ` - ${chalk.gray(req.ip)} ${chalk.gray(req.method)} ${req.path} ${colorStatusCode(res.statusCode)}`,
+    let method = "debug";
+    if (res.statusCode == 200) {
+      method = "info";
+    }
+
+    logger[method](
+      ` - ${chalk.gray(req.ip)} ${chalk.gray(req.method)} ${colorStatusCode(res.statusCode)} ${req.path}`,
     );
   });
   next();

@@ -8,6 +8,8 @@ import {
 // 导入config模块，用于保存users.json
 import config from "../../utils/config.js";
 
+const logger = global.logger.getByContext("Auth");
+
 // ========== 通用工具函数 ==========
 /** 从请求头提取 Bearer Token */
 function extractToken(req) {
@@ -52,17 +54,25 @@ function signAccessToken(user) {
   );
   if (!isValid) throw new Error("Password or username not match");
 
-  return jwt.sign({ id: user.username, role: userConfig.role ?? "default" }, global.secret, {
-    expiresIn: "2h",
-  });
+  return jwt.sign(
+    { id: user.username, role: userConfig.role ?? "default" },
+    global.auth.secret,
+    {
+      expiresIn: "2h",
+    },
+  );
 }
 
 /** 刷新 Token（无需密码，仅校验 Token 存在性） */
 function refreshAccessToken(username) {
   const userConfig = global.users[username];
-  return jwt.sign({ id: username, role: userConfig?.role ?? "default" }, global.secret, {
-    expiresIn: "2h",
-  });
+  return jwt.sign(
+    { id: username, role: userConfig?.role ?? "default" },
+    global.auth.secret,
+    {
+      expiresIn: "2h",
+    },
+  );
 }
 
 // ========== 路由导出 ==========
@@ -74,12 +84,21 @@ export default () => {
       method: "POST",
       handler: (req, res) => {
         try {
+          const { username } = req.body;
+
+          // 登录前：清除该用户所有旧的 token
+          for (const [token, user] of global.auth.tokenMap.entries()) {
+            if (user === username) {
+              global.auth.tokenMap.delete(token);
+            }
+          }
+
+          // 生成新 token 并注册
           const token = signAccessToken(req.body);
-          global.tokenMap.set(token, req.body.username);
-          global.log.info(`用户 ${req.body.username} 登录成功`);
-          res
-            .status(200)
-            .json({ ok: true, token, username: req.body.username });
+          global.auth.tokenMap.set(token, username);
+
+          logger.info(`用户 ${username} 登录成功`);
+          res.status(200).json({ ok: true, token, username });
         } catch (error) {
           res.status(400).json({ ok: false, error: error.message });
         }
@@ -91,38 +110,33 @@ export default () => {
       path: "/api/auth/validate",
       method: "GET",
       handler: (req, res) => {
-        try {
-          const token = extractToken(req);
-          const username = global.tokenMap.get(token);
-          if (!username) {
-            return res.status(401).json({ ok: false, error: "Invalid token" });
-          }
-          const userInfo = global.users[username];
-          res.status(200).json({
-            ok: true,
-            user: { username, role: userInfo?.role ?? "default" },
-          });
-        } catch (error) {
-          res.status(401).json({ ok: false, error: "Unauthorized" });
-        }
+        res.status(200).json({
+          ok: true,
+          user: {
+            username: req.user.id,
+            role: req.user.role,
+            exp: req.user.exp,
+            iat: req.user.iat,
+          },
+        });
       },
     },
 
     // 登出
     {
       path: "/api/auth/logout",
-      method: "POST",
+      method: "GET",
       handler: (req, res) => {
         try {
           const token = extractToken(req);
-          const username = global.tokenMap.get(token);
+          const username = global.auth.tokenMap.get(token);
           if (!username) {
             return res
               .status(400)
               .json({ ok: false, error: "Token not found" });
           }
-          global.tokenMap.delete(token);
-          global.log.info(`用户 ${username} 登出成功`);
+          global.auth.tokenMap.delete(token);
+          logger.info(`用户 ${username} 登出成功`);
           res.status(200).json({ ok: true });
         } catch (error) {
           res.status(400).json({ ok: false, error: error.message });
@@ -137,16 +151,16 @@ export default () => {
       handler: (req, res) => {
         try {
           const token = extractToken(req);
-          const username = global.tokenMap.get(token);
+          const username = global.auth.tokenMap.get(token);
           if (!username) {
             return res
               .status(400)
               .json({ ok: false, error: "Token not found" });
           }
           const newToken = refreshAccessToken(username);
-          global.tokenMap.delete(token);
-          global.tokenMap.set(newToken, username);
-          global.log.info(`用户 ${username} 刷新令牌`);
+          global.auth.tokenMap.delete(token);
+          global.auth.tokenMap.set(newToken, username);
+          logger.info(`用户 ${username} 刷新令牌`);
           res.status(200).json({ ok: true, token: newToken });
         } catch (error) {
           res.status(400).json({ ok: false, error: error.message });
@@ -161,7 +175,7 @@ export default () => {
       handler: async (req, res) => {
         try {
           const token = extractToken(req);
-          const username = global.tokenMap.get(token);
+          const username = global.auth.tokenMap.get(token);
           assertExists(username, "User not found");
 
           const { password, newPassword, confirmPassword } = req.body;
@@ -196,7 +210,7 @@ export default () => {
           // 关键：持久化回 users.json
           await config.saveUsersAsync(global.users);
 
-          global.log.info(`用户 ${username} 修改密码成功`);
+          logger.info(`用户 ${username} 修改密码成功`);
           res.status(200).json({ ok: true });
         } catch (err) {
           res.status(400).json({ ok: false, error: err.message });
@@ -229,7 +243,7 @@ export default () => {
           global.users[username] = { salt, shadow, role: "user" };
 
           await config.saveUsersAsync(global.users);
-          global.log.info(`创建新用户: ${username}`);
+          logger.info(`创建新用户: ${username}`);
           res.status(200).json({ ok: true });
         } catch (err) {
           res.status(400).json({ ok: false, error: err.message });

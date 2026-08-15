@@ -69,7 +69,7 @@ async function init(level) {
     return `${moment().format("hh:mm:ss")} ${level_str} ${name_str} ${message}`;
   });
 
-  reConfigure(level || "info");
+  reConfigure(level || "debug");
 }
 
 function reConfigure(level) {

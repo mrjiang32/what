@@ -1,7 +1,12 @@
-import { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
-import request from "@/utils/request";
+import {
+  createContext,
+  useContext,
+  useReducer,
+  useEffect,
+  ReactNode,
+} from "react";
+import { useCookies } from "react-cookie";
 
-// ========== 类型 ==========
 interface UserInfo {
   username: string;
 }
@@ -22,11 +27,6 @@ interface AuthContextType extends AuthState {
   logout: () => void;
 }
 
-// ========== 本地存储常量 ==========
-const TOKEN_KEY = "auth_token";
-const USER_KEY = "auth_user";
-
-// ========== reducer ==========
 const initialState: AuthState = {
   isLogin: null,
   token: null,
@@ -54,15 +54,46 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [cookies, setCookies, removeCookies] = useCookies(["user"]);
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // 初始化：先读本地存储，再校验Token有效性
+  const login = (token: string, userInfo: UserInfo) => {
+    setCookies(
+      "user",
+      {
+        token,
+        userInfo,
+      },
+      {
+        path: "/",
+        maxAge: 3600 * 6, // 6小时后过期
+        sameSite: "lax",
+      },
+    );
+    dispatch({ type: "LOGIN", payload: { token, userInfo } });
+  };
+
+  const logout = () => {
+    logoutServer(state.userInfo, state.token);
+    removeCookies("user", { path: "/" });
+    dispatch({ type: "LOGOUT" });
+  };
+
+  const logoutServer = async (user: UserInfo | null, token: string | null) => {
+    return await fetch("/api/auth/logout", {
+      headers: {
+        authorization: `Bearer ${token}`,
+        userInfo: `${user?.username}`,
+      },
+    }).then((res) => res.json());
+  };
+
   useEffect(() => {
     const checkAuth = async () => {
-      const savedToken = localStorage.getItem(TOKEN_KEY);
-      const savedUser = localStorage.getItem(USER_KEY);
+      const cookieInfo = cookies.user;
+      const savedToken = cookieInfo?.token;
+      const savedUser = cookieInfo?.userInfo;
 
-      // 本地没有Token，直接判定未登录
       if (!savedToken) {
         dispatch({ type: "LOGOUT" });
         return;
@@ -70,51 +101,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         // ✅ 核心修复：请求校验接口必须带 Bearer Token 请求头
-        const res = await request("/api/auth/validate", {
+        const res = await fetch("/api/auth/validate", {
           headers: {
-            Authorization: `Bearer ${savedToken}`,
+            authorization: `Bearer ${savedToken}`,
+            userInfo: savedUser,
           },
         });
-        const data = res.data;
+        const data = await res.json();
 
         if (data.ok) {
           // 校验通过，恢复登录态
           dispatch({
             type: "LOGIN",
-            payload: { 
-              token: savedToken, 
-              userInfo: data.username || JSON.parse(savedUser || "{}") 
+            payload: {
+              token: savedToken,
+              userInfo: data.user.username,
             },
           });
         } else {
-          // Token无效，清除本地存储
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem(USER_KEY);
-          dispatch({ type: "LOGOUT" });
+          logout();
         }
       } catch (e) {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-        dispatch({ type: "LOGOUT" });
+        console.error(e);
+        logout();
       }
     };
 
     checkAuth();
   }, []);
-
-  const login = (token: string, userInfo: UserInfo) => {
-    // ✅ 登录时持久化到 localStorage
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
-    dispatch({ type: "LOGIN", payload: { token, userInfo } });
-  };
-
-  const logout = () => {
-    // ✅ 登出时清除本地存储
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    dispatch({ type: "LOGOUT" });
-  };
 
   return (
     <AuthContext.Provider

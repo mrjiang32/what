@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import request from "@/utils/request";
 import { useAuth } from "@/provider";
 import DefaultLayout from "@/layouts/default";
 // 只用基础组件，API 最稳定
 import { Card, Input, Button } from "@heroui/react";
+import axios from "axios";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -30,13 +30,13 @@ export default function LoginPage() {
     return null;
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrMsg("");
     setLoading(true);
 
     try {
-      const res = await request.post(
+      const res = await axios.post(
         "/api/auth/login",
         { username, password },
         { withCredentials: true }
@@ -59,7 +59,6 @@ export default function LoginPage() {
   return (
     <DefaultLayout>
       <section className="flex flex-col items-center justify-center py-8 md:py-12 min-h-screen">
-        {/* Card 纯容器，内部自己做内边距，避开子组件不存在的问题 */}
         <Card className="w-full max-w-md p-6">
           <h2 className="text-2xl font-bold text-center mb-6">登录</h2>
 
@@ -68,7 +67,6 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {/* 自定义 label + Input 基础组件 */}
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">用户名</label>
               <Input

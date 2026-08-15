@@ -86,29 +86,6 @@ const sources = {
       }
     },
   },
-  "server/halt": {
-    source: new CodeSource({
-      ...defconfig,
-      dirPath: getDir("./server/halt"),
-      exts: [".mjs", ".js", ".cjs"],
-    }),
-    calls: "sys:halt",
-    /**
-     * @param {CodeSource} source
-     */
-    additional: async (source) => {
-      const idArray = (await source.toIdArray()).reverse();
-      for (const file of idArray) {
-        const currentFile = file;
-        bus.on("sys:halt", async () => {
-          await (
-            await getModuleJob(currentFile, source)
-          )();
-        });
-      }
-    },
-  },
-
   /**
    * server/timer
    * 文件导出: { interval: number, task: async ()=>void }
@@ -140,11 +117,17 @@ const sources = {
             const timerOpt = await getModuleJob(file, source, timerJobSchema);
             const { interval, task } = timerOpt;
 
-            timerLogger.debug(chalk.grey(`加载timer任务 ${file}, interval=${formatTime(interval)}`));
+            timerLogger.debug(
+              chalk.grey(
+                `加载timer任务 ${file}, interval=${formatTime(interval)}`,
+              ),
+            );
 
             // interval=0：仅执行一次
             if (interval === 0) {
-              await task().catch(err => timerLogger.error(`[timer:${file}] task run once error`, err));
+              await task().catch((err) =>
+                timerLogger.error(`[timer:${file}] task run once error`, err),
+              );
               continue;
             }
 
@@ -157,7 +140,6 @@ const sources = {
               }
             }, interval);
             timerHandles.push(handle);
-
           } catch (err) {
             timerLogger.error(`加载timer文件失败 ${file}`, err);
           }
@@ -174,7 +156,28 @@ const sources = {
       });
     },
   },
-
+  "server/halt": {
+    source: new CodeSource({
+      ...defconfig,
+      dirPath: getDir("./server/halt"),
+      exts: [".mjs", ".js", ".cjs"],
+    }),
+    calls: "sys:halt",
+    /**
+     * @param {CodeSource} source
+     */
+    additional: async (source) => {
+      const idArray = (await source.toIdArray()).reverse();
+      for (const file of idArray) {
+        const currentFile = file;
+        bus.on("sys:halt", async () => {
+          await (
+            await getModuleJob(currentFile, source)
+          )();
+        });
+      }
+    },
+  },
   "/api": {
     source: new CodeSource({
       ...defconfig,
