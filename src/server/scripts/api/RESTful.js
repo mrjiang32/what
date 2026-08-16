@@ -85,9 +85,14 @@ export async function createModuleRoutes({ apiPrefix, source, exec, ext }) {
 
         try {
           const entity = await source.get(relPath);
-          res.status(200).json({ ok: true, source: entity.text });
+          if (!entity.text?.text) {
+            return res.status(200).json({ ok: true, source: JSON.stringify(entity) });
+          }
+
+          res.status(200).json({ ok: true, source: entity.text.text });
+          console.log(entity.text);
         } catch (err) {
-          res.status(500).json({ ok: false, error: err.message });
+          res.status(500).json({ ok: false, error: err.message, stack: err.stack });
         }
       },
     },
@@ -108,7 +113,9 @@ export async function createModuleRoutes({ apiPrefix, source, exec, ext }) {
         }
 
         if (!exec) {
-          return res.status(400).json({ ok: false, error: "该数据源不支持执行操作" });
+          return res
+            .status(400)
+            .json({ ok: false, error: "该数据源不支持执行操作" });
         }
 
         try {

@@ -79,7 +79,7 @@ export class CodeSource extends FileSource {
   async _getOneFromSource(id) {
     const absPath = this._getAbsolutePath(id);
     const fileUrl = pathToFileURL(absPath);
-    return { url: fileUrl, raw: super._getOneFromSource(id) };
+    return { url: fileUrl, text: await super._getOneFromSource(id) };
   }
 
   /**
@@ -100,7 +100,7 @@ export class CodeSource extends FileSource {
         this.printing = true;
         const item = this.logQueue.shift();
         try {
-          const prefix = item.meta?.relPath ? `[${item.meta.relPath}]` : '';
+          const prefix = item.meta?.relPath ? `[${item.meta.relPath}]` : "";
           if (prefix) {
             classThis.logger[item.level](prefix, ...item.args);
           } else {
@@ -114,15 +114,15 @@ export class CodeSource extends FileSource {
       enqueue(level, args, meta) {
         const safeArgs = args.map((v) => {
           try {
-            if (v === null || typeof v !== 'object') return v;
+            if (v === null || typeof v !== "object") return v;
             return structuredClone(v);
           } catch {
-            return '[unsafe object]';
+            return "[unsafe object]";
           }
         });
         this.logQueue.push({ level, args: safeArgs, meta });
         this.drainQueue();
-      }
+      },
     };
     this.#_logGuard = guard;
     return guard;
@@ -199,12 +199,12 @@ export class CodeSource extends FileSource {
       setInterval,
       clearInterval,
       ...this.injectTools,
-      $RETURN: undefined
+      $RETURN: undefined,
     };
 
     const ctx = vm.createContext({ params, ...localSandbox });
     vm.runInContext(source, ctx, { filename: absPath, displayErrors: true });
-    return SecureUse(ctx, '$RETURN').value;
+    return SecureUse(ctx, "$RETURN").value;
     // return ctx.$RETURN;
   }
 

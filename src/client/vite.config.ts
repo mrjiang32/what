@@ -9,6 +9,9 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      react: path.resolve('./node_modules/react'),
+      'react-dom': path.resolve('./node_modules/react-dom'),
+      'react-dom/client': path.resolve('./node_modules/react-dom/client'),
     },
   },
   server: {
