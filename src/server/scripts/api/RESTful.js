@@ -122,7 +122,7 @@ export async function createModuleRoutes({ apiPrefix, source, exec, ext }) {
           const value = await exec(relPath, req.body);
           res.status(200).json({ ok: true, value: value ?? null });
         } catch (err) {
-          res.status(500).json({ ok: false, error: err.message });
+          res.status(400).json({ ok: false, error: err.message, stack: err.stack });
         }
       },
     },

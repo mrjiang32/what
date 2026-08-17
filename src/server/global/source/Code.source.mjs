@@ -4,6 +4,8 @@ import { SecureUse } from "./utilities/SecureObject.mjs";
 import { pathToFileURL } from "url";
 import fs from "fs/promises";
 import vm from "vm";
+import { fork } from "child_process";
+import path from "path";
 
 /**
  * CodeSourceEntity
@@ -28,7 +30,7 @@ import vm from "vm";
 /**
  * @typedef CodeSourceConfig
  * @property {import("./utilities/Configs/ScanFileConfig.mjs").ScanFileConfig} scanConfig 已通过 assertScanFileConfig 校验的扫描配置
- * @property {Record<string, any>} [injectTools] 给 runModule vm沙箱注入的工具对象
+ * @property {Record<string, any>} [injectTools] 给沙箱注入的工具对象（仅不信任模式生效）
  */
 
 /**
@@ -41,10 +43,19 @@ import vm from "vm";
  */
 
 /**
+ * 子进程消息类型
+ * @typedef ChildMessage
+ * @property {type:"result"|"error"|"log"} type
+ * @property {any} [payload]
+ * @property {string} [level]
+ */
+
+/**
  * CodeSource
- * 双模式合并数据源
+ * 双模式：
  * 1. importModule(id)：原生ESM动态导入，mtime自动失效
- * 2. runModule(id, params)：vm沙箱执行；增加源码内存缓存，stat轻量校验变更，避免重复readFile
+ * 2. runTrustedModule(id, params)：信任脚本，fork独立node子进程，脚本export default输出返回值
+ * 3. runUntrustedModule(id, params)：不可信脚本，isolated-vm严格沙箱隔离
  */
 export class CodeSource extends FileSource {
   /**
@@ -55,7 +66,7 @@ export class CodeSource extends FileSource {
 
   /** ESM模块导出缓存 */
   #moduleCache = new Map();
-  /** runModule 源码文本缓存 */
+  /** run* 源码文本缓存 */
   #sourceCache = new Map();
 
   /** @type {LogGuard|null} */
@@ -155,15 +166,100 @@ export class CodeSource extends FileSource {
     return mod;
   }
 
+  async runModule(id, params, trusted = true) {
+    if (trusted) {
+      return await this.runTrustedModule(id, params);
+    }
+    return await this.runUntrustedModule(id, params);
+  }
+
   /**
-   * 模式B：VM沙箱隔离运行脚本；带源码内存缓存，stat校验变更，减少readFile
+   * 模式B-1：【信任脚本】fork独立Node子进程执行，脚本使用 export default 返回结果
+   * 脚本示例：
+   * export default async function(params){
+   *   return {ok:true, data:123}
+   * }
    * @param {string} id 文件相对路径ID
-   * @param {any} params 注入沙箱的入参
-   * @returns {Promise<any>} $RETURN执行结果，做安全隔离
+   * @param {any} params 入参，会序列化传给子进程
+   * @returns {Promise<any>} 脚本export default执行返回值
    */
-  async runModule(id, params) {
+  async runTrustedModule(id, params) {
     if (!this.ready) throw new Error("CodeSource尚未就绪，请先执行getReady()");
     if (!this.has(id)) throw new Error(`模块id不存在: ${id}`);
+
+    const absPath = this._getAbsolutePath(id);
+    const stat = await fs.stat(absPath);
+    const realMtimeMs = stat.mtimeMs;
+
+    // 复用源码缓存（子进程会重新解析，缓存仅减少readFile IO）
+    let source;
+    const sourceCached = this.#sourceCache.get(id);
+    if (!(sourceCached && sourceCached.mtimeMs === realMtimeMs)) {
+      source = await fs.readFile(absPath, "utf-8");
+      this.#sourceCache.set(id, { source, mtimeMs: realMtimeMs });
+    }
+
+    const logGuard = this.#logGuard;
+
+    return new Promise((resolve, reject) => {
+      const child = fork(path.resolve("./global/TrustedWorker.mjs"), [], {
+        stdio: ["ignore", "pipe", "pipe", "ipc"]
+      });
+
+      // 【核心修复】收集子进程的 stderr 输出
+      let stderrOutput = '';
+      child.stderr.on('data', (chunk) => {
+        stderrOutput += chunk.toString();
+      });
+
+      child.send({ absPath, params });
+
+      child.on("message", (msg) => {
+        if (msg.type === "result") {
+          child.kill();
+          resolve(msg.payload);
+        } else if (msg.type === "error") {
+          child.kill();
+          reject(new Error(msg.payload?.message ?? "子进程脚本执行异常", { cause: msg.payload }));
+        } else if (msg.type === "log") {
+          logGuard.enqueue(msg.level, msg.payload, { relPath: id });
+        }
+      });
+
+      child.on("close", (code) => {
+        if (code !== 0) {
+          // 【核心修复】将收集到的 stderr 拼接到错误信息中，方便排查
+          const errMsg = stderrOutput 
+            ? `子进程异常退出 code=${code}\n${stderrOutput}` 
+            : `子进程异常退出 code=${code}`;
+          reject(new Error(errMsg));
+        }
+      });
+
+      child.on("error", (err) => {
+        child.kill();
+        reject(err);
+      });
+    });
+  }
+
+  /**
+   * 模式B-2：【不信任脚本】isolated-vm沙箱执行
+   * @param {string} id 文件相对路径ID
+   * @param {any} params 入参
+   * @returns {Promise<any>} 脚本执行返回值
+   */
+  async runUntrustedModule(id, params) {
+    if (!this.ready) throw new Error("CodeSource尚未就绪，请先执行getReady()");
+    if (!this.has(id)) throw new Error(`模块id不存在: ${id}`);
+
+    // 运行时动态加载 isolated-vm，环境缺失时报明确错误
+    let ivm;
+    try {
+      ivm = (await import("isolated-vm")).default;
+    } catch (e) {
+      throw new Error("runUntrustedModule 需要 isolated-vm 包，当前环境加载失败，请安装适配版本", { cause: e });
+    }
 
     const absPath = this._getAbsolutePath(id);
     const stat = await fs.stat(absPath);
@@ -172,44 +268,70 @@ export class CodeSource extends FileSource {
     let source;
     const sourceCached = this.#sourceCache.get(id);
     if (sourceCached && sourceCached.mtimeMs === realMtimeMs) {
-      // mtime未变化，复用内存缓存源码，跳过readFile
       source = sourceCached.source;
     } else {
-      // 文件改动或无缓存，读取源码并更新缓存
       source = await fs.readFile(absPath, "utf-8");
       this.#sourceCache.set(id, { source, mtimeMs: realMtimeMs });
     }
 
-    const nativeConsole = { ...console };
     const logGuard = this.#logGuard;
 
-    const localSandbox = {
-      console: {
-        log: (...args) => logGuard.enqueue("info", args, { relPath: id }),
-        info: (...args) => logGuard.enqueue("info", args, { relPath: id }),
-        debug: (...args) => logGuard.enqueue("debug", args, { relPath: id }),
-        error: (...args) => logGuard.enqueue("error", args, { relPath: id }),
-        warn: (...args) => logGuard.enqueue("warn", args, { relPath: id }),
-        trace: nativeConsole.trace,
-        dir: nativeConsole.dir,
-        table: nativeConsole.table,
-      },
-      setTimeout,
-      clearTimeout,
-      setInterval,
-      clearInterval,
-      ...this.injectTools,
-      $RETURN: undefined,
-    };
+    const isolate = new ivm.Isolate({ memoryLimit: 128 });
+    const context = await isolate.createContext();
+    const jail = context.global;
 
-    const ctx = vm.createContext({ params, ...localSandbox });
-    vm.runInContext(source, ctx, { filename: absPath, displayErrors: true });
-    return SecureUse(ctx, "$RETURN").value;
-    // return ctx.$RETURN;
+    // 挂载沙箱全局
+    await jail.set("params", new ivm.ExternalCopy(params).copyInto());
+    // 1. 定义宿主环境的日志处理函数
+    const logHandler = new ivm.Reference((level, messageStr) => {
+      logGuard.enqueue(level, [messageStr], { relPath: id });
+    });
+
+    // 2. 将处理函数注入沙箱
+    await jail.set("__logHandler", logHandler);
+
+    await context.eval(`
+      // 提取统一的格式化逻辑，所有日志级别复用
+      const formatArgs = (args) => {
+        return args.map(arg => {
+          try {
+            return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+          } catch {
+            return '[Unserializable]';
+          }
+        }).join(' ');
+      };
+
+      globalThis.console = {
+        log: (...args) => globalThis.__logHandler.apply(undefined, ['info', formatArgs(args)]),
+        info: (...args) => globalThis.__logHandler.apply(undefined, ['info', formatArgs(args)]),
+        debug: (...args) => globalThis.__logHandler.apply(undefined, ['debug', formatArgs(args)]),
+        warn: (...args) => globalThis.__logHandler.apply(undefined, ['warn', formatArgs(args)]),
+        error: (...args) => globalThis.__logHandler.apply(undefined, ['error', formatArgs(args)]),
+      };
+    `);
+
+    // 注入外部工具对象
+    for(const [k, v] of Object.entries(this.injectTools ?? {})){
+      await jail.set(k, new ivm.ExternalCopy(v).copyInto());
+    }
+
+    // 脚本约定：最后表达式 return $RESULT;
+    const wrappedSource = `
+      let $RESULT;
+      ${source};
+      $RESULT
+    `;
+
+    const script = await isolate.compileScript(wrappedSource, { filename: absPath });
+    const ret = await script.run(context);
+
+    isolate.dispose();
+    return ret;
   }
 
   /**
-   * 清除单个id全部缓存：ESM模块缓存 + runModule源码缓存
+   * 清除单个id全部缓存：ESM模块缓存 + run*源码缓存
    * @param {string} id
    */
   invalidate(id) {

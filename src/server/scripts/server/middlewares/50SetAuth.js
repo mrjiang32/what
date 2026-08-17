@@ -3,6 +3,9 @@ import global from "../../../global.js";
 
 function authMiddleware(req, res, next) {
   const whiteList = global.whiteList || [];
+  if (global.args["no-auth"]) {
+    return next();
+  }
 
   // 仅对 /api 下接口生效
   if (!req.url.startsWith("/api")) {
