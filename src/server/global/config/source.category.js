@@ -1,5 +1,6 @@
 import { FileSource } from "../source/File.source.mjs";
 import { JSONSource } from "../source/JSON.source.mjs";
+import { DirSource } from "../source/Dir.source.mjs";
 import { CodeSource } from "../source/Code.source.mjs";
 import { Logger } from "../utils/Logger.mjs";
 import { Rule } from "../source/utilities/Rules/Rule.mjs";
@@ -103,10 +104,13 @@ const sources = {
             registeredTasks.add(file);
             return true;
           })
-          .map((currentFile) => async () => {
-            const job = await getModuleJob(currentFile, source);
-            await job();
-          });
+          .map((currentFile) => ({
+            task: async () => {
+              const job = await getModuleJob(currentFile, source);
+              await job();
+            },
+            id: currentFile,
+          }));
 
         if (tasks.length > 0) {
           priorityGroups.push(tasks);
@@ -118,12 +122,15 @@ const sources = {
         // 当 sys:init 触发时，按优先级顺序执行
         for (const tasks of priorityGroups) {
           // 同一优先级内的任务并行执行
-          const results = await Promise.allSettled(tasks.map((task) => task()));
+          const results = await Promise.allSettled(tasks.map((task) => task.task()));
 
           // 错误隔离：打印失败的任务，但不中断后续流程
-          for (const result of results) {
+          for (const [index, result] of results.entries()) {
             if (result.status === "rejected") {
-              logger.error(`[sys:init] Parallel task failed:`, result.reason);
+              logger.error(
+                `[sys:init] Parallel task ${tasks[index].id} failed:`,
+                result.reason,
+              );
             }
           }
         }
@@ -248,44 +255,21 @@ const sources = {
             );
             logger.debug(
               chalk.underline("设置路由") +
-              chalk.grey(
-                `  ${route.method.toUpperCase().padEnd(6)} ${route.path}`,
-              ),
+                chalk.grey(
+                  `  ${route.method.toUpperCase().padEnd(6)} ${route.path}`,
+                ),
             );
           }
         });
       }
     },
   },
-  "/custom/hook": {
-    source: new JSONSource({
-      ...defconfig,
-      dirPath: getDir("./custom/hook"),
-      exts: [".json"],
-      logger: logger.getByContext("/custom/hook"),
-    }),
-    calls: "custom:hook",
-    /**
-     * @param {JSONSource} source
-     */
-    additional: async (source) => {
-      // await source.getReady();
-    },
-  },
   "/custom/func": {
-    source: new CodeSource({
-      ...defconfig,
+    source: new DirSource({
       dirPath: getDir("./custom/func"),
-      exts: [".mjs", ".js", ".cjs"],
+      dirBlackList: ["node_modules", ".git", ".vscode"],
       logger: logger.getByContext("/custom/func"),
     }),
-    calls: "custom:func",
-    /**
-     * @param {CodeSource} source
-     */
-    additional: async (source) => {
-      // await source.getReady();
-    },
   },
   "/server/middlewares": {
     source: new CodeSource({
@@ -308,9 +292,9 @@ const sources = {
           global.server.app.use(mod);
           mwLogger.debug(
             chalk.underline("设置中间件") +
-            chalk.grey(
-              `  ${path.join(global.scan.workdir, "./server/middlewares", file)}`,
-            ),
+              chalk.grey(
+                `  ${path.join(global.scan.workdir, "./server/middlewares", file)}`,
+              ),
           );
         });
       }
