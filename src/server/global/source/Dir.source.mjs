@@ -5,12 +5,6 @@ import path from "path";
 import fs from "fs/promises";
 import { Rule } from "./utilities/Rules/Rule.mjs";
 
-/**
- * @typedef DirSourceConfig
- * @property {DirScanConfig} scanConfig
- * @property {import("../utils/Logger.mjs").Logger} [logger]
- */
-
 // ID校验，与FileSource/CodeSource统一，防御路径逃逸
 const SuiteIdSchema = Rule.string().regexp(/^(?!\.\.\/)(?!\/).+/);
 
@@ -33,7 +27,6 @@ const SuiteSettingsSchema = Rule.object({
  */
 
 export class DirSource extends BaseSource {
-  /** @type {DirSourceConfig} */
   #config;
   /** @type {DirScanner} */
   #scanner;
@@ -56,7 +49,7 @@ export class DirSource extends BaseSource {
       err.failures = res.failures;
       throw err;
     }
-    return path.join(this.#config.scanConfig.dirPath, suiteId);
+    return path.join(this.#config.dirPath, suiteId);
   }
 
   /**
@@ -76,7 +69,7 @@ export class DirSource extends BaseSource {
    */
   async _getOneFromSource(id) {
     const settingsPath = path.join(this.#suiteDir(id), "settings.json");
-    const rawText = await fs.readFile(settingsPath, "utf‑8");
+    const rawText = await fs.readFile(settingsPath, "utf-8");
     return { rawText };
   }
 
@@ -90,7 +83,7 @@ export class DirSource extends BaseSource {
     const dir = this.#suiteDir(id);
     await fs.mkdir(dir, { recursive: true });
     const settingsPath = path.join(dir, "settings.json");
-    await fs.writeFile(settingsPath, data.rawText, "utf‑8");
+    await fs.writeFile(settingsPath, data.rawText, "utf-8");
   }
 
   /**
@@ -109,40 +102,55 @@ export class DirSource extends BaseSource {
   async listValidSuites() {
     this._assertReady();
     const suiteIds = await this.toIdArray();
+    console.debug("[DirSource] 扫描器发现的suiteId列表:", suiteIds);
     const out = [];
-
+  
     for (const suiteId of suiteIds) {
-      if (!SuiteIdSchema.test(suiteId)) continue;
+      console.debug("[DirSource] 正在处理套件:", suiteId);
+      if (!SuiteIdSchema.test(suiteId)) {
+        console.warn(`[DirSource] 跳过，suiteId不合法: ${suiteId}`);
+        continue;
+      }
       const suiteAbs = this.#suiteDir(suiteId);
       const settingsAbs = path.join(suiteAbs, "settings.json");
       const mainJsAbs = path.join(suiteAbs, "main.js");
-
+  
       try {
         const stat = await fs.stat(settingsAbs);
-        if (!stat.isFile()) continue;
-
+        if (!stat.isFile()) {
+          console.warn(`[DirSource] 不是有效文件: ${settingsAbs}`);
+          continue;
+        }
+  
         const entity = await this.get(suiteId);
         const parsed = JSON.parse(entity.rawText);
         const schemaCheck = SuiteSettingsSchema.validate(parsed);
-        if (!schemaCheck.ok) continue;
-
+        if (!schemaCheck.ok) {
+          console.warn(`[DirSource] 套件 ${suiteId} Schema校验失败`, schemaCheck.failures);
+          continue;
+        }
+  
         let hasMainJs = false;
         try {
           await fs.stat(mainJsAbs);
           hasMainJs = true;
-        } catch { /* no‑op */ }
-
+        } catch {
+          hasMainJs = false;
+        }
+  
         out.push({
           suiteId,
           settingsAbs,
           mainJsAbs: hasMainJs ? mainJsAbs : undefined,
           hasMainJs
         });
-      } catch {
-        // stat / read / parse 异常直接丢弃该套件
+        console.debug(`[DirSource] 有效套件已加入列表: ${suiteId}`);
+      } catch (err) {
+        console.warn(`[DirSource] 跳过套件 ${suiteId}，发生异常`, err.message);
         continue;
       }
     }
+    console.debug("[DirSource] 最终有效套件数量:", out.length);
     return out;
   }
 

@@ -128,7 +128,7 @@ export async function createModuleRoutes({ apiPrefix, source }) {
           const suites = suitesMeta.map((s) => s.suiteId);
           res.status(200).json({ ok: true, suites });
         } catch (err) {
-          res.status(500).json({ ok: false, error: err.message });
+          res.status(500).json({ ok: false, error: err.message, stack: err.stack });
         }
       },
     },
@@ -143,7 +143,7 @@ export async function createModuleRoutes({ apiPrefix, source }) {
           const suites = suitesMeta.map((s) => s.suiteId);
           res.status(200).json({ ok: true, suites });
         } catch (err) {
-          res.status(500).json({ ok: false, error: err.message });
+          res.status(500).json({ ok: false, error: err.message, stack: err.stack });
         }
       },
     },
@@ -169,7 +169,7 @@ export async function createModuleRoutes({ apiPrefix, source }) {
             settings,
           });
         } catch (err) {
-          res.status(500).json({ ok: false, error: err.message });
+          res.status(500).json({ ok: false, error: err.message, stack: err.stack });
         }
       },
     },
@@ -199,7 +199,7 @@ export async function createModuleRoutes({ apiPrefix, source }) {
           }
           return res.status(200).json({ ok: true });
         } catch (err) {
-          return res.status(500).json({ ok: false, error: err.message });
+          return res.status(500).json({ ok: false, error: err.message, stack: err.stack });
         }
       },
     },
@@ -233,7 +233,7 @@ export async function createModuleRoutes({ apiPrefix, source }) {
               .json({ ok: false, error: "仅允许更新 settings.json / main.js" });
           }
         } catch (err) {
-          return res.status(500).json({ ok: false, error: err.message });
+          return res.status(500).json({ ok: false, error: err.message, stack: err.stack });
         }
       },
     },
@@ -275,7 +275,7 @@ export async function createModuleRoutes({ apiPrefix, source }) {
           await source.del(suiteName);
           res.status(200).json({ ok: true });
         } catch (err) {
-          res.status(500).json({ ok: false, error: err.message });
+          res.status(500).json({ ok: false, error: err.message, stack: err.stack });
         }
       },
     },
@@ -302,7 +302,7 @@ export async function createModuleRoutes({ apiPrefix, source }) {
           await npmInstall(suiteDir, pkgs);
           res.status(200).json({ ok: true });
         } catch (err) {
-          res.status(500).json({ ok: false, error: err.message });
+          res.status(500).json({ ok: false, error: err.message, stack: err.stack });
         }
       },
     },
@@ -327,7 +327,7 @@ export async function createModuleRoutes({ apiPrefix, source }) {
           await npmUninstall(suiteDir, pkgs);
           res.status(200).json({ ok: true });
         } catch (err) {
-          res.status(500).json({ ok: false, error: err.message });
+          res.status(500).json({ ok: false, error: err.message, stack: err.stack });
         }
       },
     },
@@ -346,7 +346,7 @@ export async function createModuleRoutes({ apiPrefix, source }) {
           const deps = await npmList(suiteDir);
           res.status(200).json({ ok: true, data: deps });
         } catch (err) {
-          res.status(500).json({ ok: false, error: err.message });
+          res.status(500).json({ ok: false, error: err.message, stack: err.stack });
         }
       },
     },
