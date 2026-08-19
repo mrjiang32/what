@@ -10,17 +10,11 @@ export default {
     validSettingJSON: Rule.object({
         id: Rule.string().finish(),
         description: Rule.string().optional().nullable().finish(),
-        environment: Rule.object().finish(),
-        mainHash: Rule.string().hashlike().finish(),
-        dependencies: Rule.array("string").items(validPackageName).finish(),
+        __mainHash: Rule.string().hashlike().finish(),
+        __dependencies: Rule.array("string").items(validPackageName).finish(),
         timeout: Rule.number().finite().finish(),
-        perms: Rule.or([Rule.equal("Trusted").finish(), Rule.object({
-            "fs.read": Rule.boolean().optional().nullable().finish(),
-            "fs.write": Rule.boolean().optional().nullable().finish(),
-            "fetch": Rule.boolean().optional().nullable().finish(),
-            "connect": Rule.boolean().optional().nullable().finish(),
-        }).finish()]).finish()
     }).finish(),
+    validPOSTSettingsJSON: Rule.object().finish()
 }
 
 /**

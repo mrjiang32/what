@@ -1,14 +1,15 @@
-import fs from "fs/promises";
-import path from "path";
 import { Worker } from "worker_threads";
+import global from "../../../../global.js";
+import path from "path";
+import { fileURLToPath } from "url"
 
-export default async function runTrusted(filePath, params, timeoutMs, perms) {
-  if (perms !== "Trusted")
-    throw new Error("Untrusted Script should not using runTrusted");
+const workerPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "./runner.js");
+const logger = global.logger.getByContext("runner");
+
+export default async function runTrusted(filePath, params, timeoutMs, suiteName) {
   return new Promise((resolve, reject) => {
-    // 使用 Worker 替代 child_process，开销更小且支持直接传参
-    const worker = new Worker(filePath, {
-      workerData: params,
+    const worker = new Worker(workerPath, {
+      workerData: { filePath, params },
       execArgv: [],
     });
 
@@ -16,10 +17,36 @@ export default async function runTrusted(filePath, params, timeoutMs, perms) {
       worker.terminate();
       reject(new Error(`[Trusted] 套件执行超时(${timeoutMs}ms)`));
     }, timeoutMs);
+    worker.on("message", (msg) => {
+      // logger.info(JSON.stringify(msg, null, 2));
+      // 1. 日志重定向
+      if (msg?.type === "__LOG__") {
+        const { level, args } = msg;
+        if (typeof logger[level] === "function") {
+          logger[level](suiteName, ": ", ...args);
+        }
+        return;
+      }
 
-    worker.on("message", (result) => {
+      // 2. 执行结果
+      if (msg.type === "finish") {
+        clearTimeout(timer);
+        resolve(msg.returnVal);
+        return;
+      }
+
+      // 3. 执行错误
+      if (msg.type === "error") {
+        clearTimeout(timer);
+        const err = new Error(msg.error.message);
+        err.stack = msg.error.stack;
+        reject(err);
+        return;
+      }
+
+      // 4. 兼容旧格式（直接传结果）
       clearTimeout(timer);
-      resolve(result);
+      resolve(msg);
     });
 
     worker.on("error", (err) => {
