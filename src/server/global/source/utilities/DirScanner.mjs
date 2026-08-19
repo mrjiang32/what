@@ -2,6 +2,7 @@
 import path from "path";
 import fs from "fs/promises";
 import { assertScanDirConfig } from "./Configs/ScanDirConfig.mjs";
+import { makeSureExists } from "./exists.js";
 
 /**
  * @typedef DirScanConfig
@@ -29,6 +30,10 @@ export class DirScanner {
    */
   async scan() {
     const { dirPath, dirBlackList } = this.config;
+
+    if(!(await makeSureExists(dirPath))) {
+      return [];
+    }
 
     let entries;
     try {

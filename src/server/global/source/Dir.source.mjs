@@ -172,6 +172,10 @@ export class DirSource extends BaseSource {
     return parsed;
   }
 
+  _getSuiteAbsolutePath(id) {
+    return path.join(this._source.dirPath, id);
+  }
+
   async reloadAndList() {
     await this.reload();
     return this.listValidSuites();

@@ -148,7 +148,7 @@ const sources = {
       ...defconfig,
       dirPath: getDir("./server/timer"),
       exts: [".mjs", ".js", ".cjs"],
-      logger: logger.getByContext("server/timer"),
+      logger: logger.getByContext("server/timer").mute(),
     }),
     calls: "sys:timer",
     /**
@@ -234,7 +234,7 @@ const sources = {
       ...defconfig,
       dirPath: getDir("./api/routes"),
       exts: [".mjs", ".js", ".cjs"],
-      logger: logger.getByContext("/api"),
+      logger: logger.getByContext("/api").mute(),
     }),
     calls: "api",
     /**
@@ -276,7 +276,7 @@ const sources = {
       ...defconfig,
       dirPath: getDir("./server/middlewares"),
       exts: [".mjs", ".js", ".cjs"],
-      logger: logger.getByContext("/server/middlewares"),
+      logger: logger.getByContext("/server/middlewares").mute(),
     }),
     calls: "sys:middlewares",
     /**

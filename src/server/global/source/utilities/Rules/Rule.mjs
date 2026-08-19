@@ -23,6 +23,30 @@ export class Rule {
     this._rules = [];
   }
 
+  equal(value_p) {
+    this._rules.push({
+      id: "equal",
+      conditioner: (value) => value === value_p,
+    });
+
+    return this;
+  }
+
+  static equal(value_p) {
+    return new Rule().equal(value_p);
+  }
+
+  /**
+   * @param {Rule} rule
+   */
+  reverse(rule) {
+    this._rules.push({
+      id: "reverse-rule",
+      conditioner: (value) => !rule.test(value),
+    });
+
+    return this;
+  }
   /**
    * 原生typeof体系校验，接收字符串别名
    * @param {string} type
@@ -39,29 +63,29 @@ export class Rule {
     if (target === null) {
       this._rules.push({
         id: "typeOfNull",
-        conditioner: (value) => value === null
+        conditioner: (value) => value === null,
       });
     } else if (target === undefined) {
       this._rules.push({
         id: "typeOfUndefined",
-        conditioner: (value) => value === undefined
+        conditioner: (value) => value === undefined,
       });
     } else if (type === "array") {
       this._rules.push({
         id: "typeOfArray",
-        conditioner: (value) => Array.isArray(value)
+        conditioner: (value) => Array.isArray(value),
       });
     } else if (type === "object") {
       this._rules.push({
         id: "typeOf",
         expect: type,
-        conditioner: (value) => value !== null && typeof value === type
+        conditioner: (value) => value !== null && typeof value === type,
       });
     } else {
       this._rules.push({
         id: "typeOf",
         expect: type,
-        conditioner: (value) => typeof value === type
+        conditioner: (value) => typeof value === type,
       });
     }
     return this;
@@ -78,7 +102,7 @@ export class Rule {
     this._rules.push({
       id: "instanceOf",
       type: ctor,
-      conditioner: (value) => value instanceof ctor
+      conditioner: (value) => value instanceof ctor,
     });
     return this;
   }
@@ -96,7 +120,7 @@ export class Rule {
       conditioner: (value) => {
         const ret = conditioner(value);
         return Boolean(ret);
-      }
+      },
     });
     return this;
   }
@@ -126,7 +150,7 @@ export class Rule {
           return childRules.test(value);
         }
         if (Array.isArray(childRules)) {
-          return childRules.every(r => {
+          return childRules.every((r) => {
             if (!(r instanceof Rule)) return false;
             return r.test(value);
           });
@@ -141,7 +165,7 @@ export class Rule {
           });
         }
         return false;
-      }
+      },
     });
     return this;
   }
@@ -151,7 +175,11 @@ export class Rule {
    * @param {Record<string, Rule>} childRules
    */
   strictChild(childRules) {
-    if (typeof childRules !== "object" || childRules === null || Array.isArray(childRules)) {
+    if (
+      typeof childRules !== "object" ||
+      childRules === null ||
+      Array.isArray(childRules)
+    ) {
       throw new Error(".strictChild only accept plain object schema");
     }
     const expectKeys = Object.keys(childRules);
@@ -160,14 +188,15 @@ export class Rule {
       expectKeys,
       childRules,
       conditioner: (value) => {
-        if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+        if (value === null || typeof value !== "object" || Array.isArray(value))
+          return false;
         const actualKeys = Object.keys(value);
-        if (actualKeys.some(k => !expectKeys.includes(k))) return false;
+        if (actualKeys.some((k) => !expectKeys.includes(k))) return false;
         return Object.entries(childRules).every(([key, rule]) => {
           if (!(rule instanceof Rule)) return false;
           return rule.test(value[key]);
         });
-      }
+      },
     });
     return this;
   }
@@ -185,8 +214,8 @@ export class Rule {
       itemRule,
       conditioner: (value) => {
         if (!Array.isArray(value)) return false;
-        return value.every(item => itemRule.test(item));
-      }
+        return value.every((item) => itemRule.test(item));
+      },
     });
     return this;
   }
@@ -197,13 +226,13 @@ export class Rule {
    * @param {Rule[]} rules
    */
   or(rules) {
-    if (!Array.isArray(rules) || rules.some(r => !(r instanceof Rule))) {
+    if (!Array.isArray(rules) || rules.some((r) => !(r instanceof Rule))) {
       throw new Error(".or() expects array of Rule instances");
     }
     this._rules.push({
       id: "or",
       rules,
-      conditioner: (value) => rules.some(r => r.test(value))
+      conditioner: (value) => rules.some((r) => r.test(value)),
     });
     return this;
   }
@@ -217,7 +246,7 @@ export class Rule {
     this._rules.push({
       id: "enum",
       allowed: allowedValues,
-      conditioner: (value) => allowedValues.includes(value)
+      conditioner: (value) => allowedValues.includes(value),
     });
     return this;
   }
@@ -230,7 +259,7 @@ export class Rule {
     this._rules.push({
       id: "min",
       min: minVal,
-      conditioner: v => typeof v === "number" && v >= minVal
+      conditioner: (v) => typeof v === "number" && v >= minVal,
     });
     return this;
   }
@@ -243,7 +272,7 @@ export class Rule {
     this._rules.push({
       id: "max",
       max: maxVal,
-      conditioner: v => typeof v === "number" && v <= maxVal
+      conditioner: (v) => typeof v === "number" && v <= maxVal,
     });
     return this;
   }
@@ -256,7 +285,7 @@ export class Rule {
     this._rules.push({
       id: "minLength",
       len,
-      conditioner: v => typeof v === "string" && v.length >= len
+      conditioner: (v) => typeof v === "string" && v.length >= len,
     });
     return this;
   }
@@ -269,7 +298,7 @@ export class Rule {
     this._rules.push({
       id: "maxLength",
       len,
-      conditioner: v => typeof v === "string" && v.length <= len
+      conditioner: (v) => typeof v === "string" && v.length <= len,
     });
     return this;
   }
@@ -283,7 +312,7 @@ export class Rule {
     this._rules.push({
       id: "regexp",
       regex: re,
-      conditioner: v => typeof v === "string" && re.test(v)
+      conditioner: (v) => typeof v === "string" && re.test(v),
     });
     return this;
   }
@@ -310,7 +339,7 @@ export class Rule {
    */
   clone() {
     const inst = new Rule();
-    inst._rules = this._rules.map(r => {
+    inst._rules = this._rules.map((r) => {
       /** @type {RuleEntry} */
       const copy = { ...r };
 
@@ -319,13 +348,15 @@ export class Rule {
         copy.childRules = copy.childRules.clone();
       }
       if (Array.isArray(copy.childRules)) {
-        copy.childRules = copy.childRules.map(sub => sub instanceof Rule ? sub.clone() : sub);
+        copy.childRules = copy.childRules.map((sub) =>
+          sub instanceof Rule ? sub.clone() : sub,
+        );
       }
       if (copy.itemRule instanceof Rule) {
         copy.itemRule = copy.itemRule.clone();
       }
       if (Array.isArray(copy.rules)) {
-        copy.rules = copy.rules.map(sub => sub.clone());
+        copy.rules = copy.rules.map((sub) => sub.clone());
       }
       return copy;
     });
@@ -338,7 +369,7 @@ export class Rule {
    * @returns {boolean} true全部规则通过
    */
   test(value) {
-    return this._rules.every(rule => {
+    return this._rules.every((rule) => {
       try {
         return rule.conditioner(value);
       } catch (e) {
@@ -368,8 +399,81 @@ export class Rule {
     }
     return {
       ok: failures.length === 0,
-      failures
+      failures,
     };
+  }
+
+  length(len) {
+    this._rules.push({
+      id: "length",
+      conditioner: (value) => value?.length === len,
+    });
+    return this;
+  }
+
+  /**
+   * 校验字符串是否为合法的 hash 格式
+   * @param {string} [hashtype='md5'] - 支持的哈希类型: 'md5', 'sha1', 'sha256', 'sha512'
+   */
+  hashlike(hashtype = "md5") {
+    // 1. Map hash types to their standard hex string lengths
+    const hashLengths = {
+      md5: 32,
+      sha1: 40,
+      sha256: 64,
+      sha512: 128,
+    };
+
+    const length = hashLengths[hashtype.toLowerCase()];
+    if (!length) {
+      throw new Error(
+        `Unsupported hash type: ${hashtype}. Supported: ${Object.keys(hashLengths).join(", ")}`,
+      );
+    }
+
+    // 2. Dynamically generate the regex based on the length
+    const regex = new RegExp(`^[a-f0-9]{${length}}$`);
+
+    this._rules.push({
+      id: "hashlike",
+      expect: hashtype, // Useful for error messages
+      regex,
+      conditioner: (v) => typeof v === "string" && regex.test(v),
+    });
+
+    return this;
+  }
+
+  static #deepFreeze(obj) {
+    // Handle null, primitives, or already frozen objects
+    if (obj === null || typeof obj !== "object" || Object.isFrozen(obj)) {
+      return obj;
+    }
+
+    // Freeze the object/array itself first
+    Object.freeze(obj);
+
+    // Recursively freeze all own properties
+    for (const key of Object.getOwnPropertyNames(obj)) {
+      const prop = obj[key];
+      if (prop !== null && typeof prop === "object") {
+        deepFreeze(prop);
+      }
+    }
+
+    return obj;
+  }
+
+  finite() {
+    this._rules.push({
+      id: "isFinite",
+      conditioner: Number.isFinite
+    })
+  }
+
+  finish() {
+    Rule.#deepFreeze(this._rules);
+    return this;
   }
 
   static type(typeStr) {
@@ -385,7 +489,7 @@ export class Rule {
    * @param {Rule[]} rules
    */
   static or(rules) {
-    if (!Array.isArray(rules) || rules.some(r => !(r instanceof Rule))) {
+    if (!Array.isArray(rules) || rules.some((r) => !(r instanceof Rule))) {
       throw new Error("Rule.or() expects array of Rule instances");
     }
     return new Rule().or(rules);

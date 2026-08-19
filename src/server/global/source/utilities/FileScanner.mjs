@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs/promises";
+import { makeSureExists } from "./exists.js";
 import { assertScanFileConfig } from "./Configs/ScanFileConfig.mjs";
 
 /**
@@ -91,6 +92,10 @@ export class FileScanner {
     const rootScanDir = this.config.dirPath;
     const exts = this.config.exts ?? [];
     const extSet = new Set(exts);
+
+    if (!(await makeSureExists(rootScanDir))) {
+      return [];
+    }
 
     const relPaths = await this.#scanInternal({
       scanDir: rootScanDir,

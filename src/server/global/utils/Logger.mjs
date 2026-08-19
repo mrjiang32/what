@@ -128,8 +128,8 @@ export class Logger {
       trace: blankFunction,
       debug: blankFunction,
       info: blankFunction,
-      warn: blankFunction,
-      error: blankFunction,
+      warn: this._mutedinner.warn,
+      error: this._mutedinner.error,
       fatal: blankFunction,
     }
     return this;

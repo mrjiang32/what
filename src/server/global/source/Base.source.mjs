@@ -68,22 +68,40 @@ class BaseSource {
     }
   }
 
-  /**
-   * 从底层数据源全量加载ID索引到内存，完成初始化
-   * @async
-   * @returns {Promise<this>} 自身实例，支持链式调用
-   */
+  // Helper method to check if two Sets/Arrays have the exact same content
+  _isDataSetEqual(newIdList) {
+    if (!this._dataSet || this._dataSet.size !== newIdList.length) {
+      return false;
+    }
+    for (const id of newIdList) {
+      if (!this._dataSet.has(id)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   async getReady() {
     const idList = await this._updateFromSource();
+
+    // Check if the data has actually changed before updating and logging
+    const hasChanged = !this._isDataSetEqual(idList);
+
+    // Always update the dataset and ready state
     this._dataSet = new Set(idList);
-    if (this._logger) {
+    this._ready = true;
+
+    // Only print logs if there are actual changes
+    if (hasChanged && this._logger) {
       this._logger.debug(`扫描数据源: ${chalk.gray(this._logger.name)}`);
-      this._logger.debug(`扫描统计: ${chalk.yellow(this._dataSet.size)} 条记录`);
+      this._logger.debug(
+        `扫描统计: ${chalk.yellow(this._dataSet.size)} 条记录`,
+      );
       for (const id of this._dataSet.keys()) {
         this._logger.debug(chalk.gray(` - ${id}`));
       }
     }
-    this._ready = true;
+
     return this;
   }
 
