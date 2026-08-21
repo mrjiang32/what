@@ -457,7 +457,8 @@ export class Rule {
     for (const key of Object.getOwnPropertyNames(obj)) {
       const prop = obj[key];
       if (prop !== null && typeof prop === "object") {
-        deepFreeze(prop);
+        // use the private static method recursively
+        Rule.#deepFreeze(prop);
       }
     }
 
@@ -468,7 +469,8 @@ export class Rule {
     this._rules.push({
       id: "isFinite",
       conditioner: Number.isFinite
-    })
+    });
+    return this;
   }
 
   finish() {

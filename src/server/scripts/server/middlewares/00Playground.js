@@ -1,10 +1,16 @@
-import main from "./global/main.js";
-import global from "./global.js";
-import logger, { Logger } from "./global/utils/Logger.mjs";
+import global from "../../../global.js";
 
-// Early static GraphiQL endpoint to guarantee GET /graphql returns the playground
-try {
-  const html = `<!doctype html>
+// Early middleware: intercept GET requests to /graphql and return a static GraphiQL UI
+export default (req, res, next) => {
+  try {
+    if (req.method === 'GET') {
+      // Normalize path portion (req.path may be set by express)
+      const urlPath = req.path || req.url || req.originalUrl || '';
+      if ((urlPath || '').includes('graphql')) {
+        try { global.logger.getByContext('Playground').debug('Playground middleware saw request', urlPath, req.headers.accept); } catch(e) { console.log('Playground saw', urlPath); }
+      }
+      if (urlPath === '/graphql' && (req.headers.accept || '').includes('text/html')) {
+        const html = `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -26,24 +32,12 @@ try {
     </script>
   </body>
 </html>`;
-
-  if (global?.server?.app && typeof global.server.app.get === 'function') {
-    global.server.app.get('/graphql', (req, res) => {
-      try {
         res.set('Content-Type', 'text/html');
         return res.status(200).send(html);
-      } catch (e) {
-        try { global.logger.getByContext('GraphQL').error('Early GraphiQL handler error', e); } catch (_){ }
-        return res.status(500).send('Internal');
       }
-    });
+    }
+  } catch (err) {
+    try { global.logger.getByContext('GraphQL').error('Playground middleware error', err); } catch(e){}
   }
-} catch (e) {
-  try { console.error('Failed to mount early GraphiQL handler', e); } catch (_){ }
-}
-
-global.startTime = Date.now();
-
-await logger.init();
-await main.getReady();
-await main.bus.emitSafe("sys:init");
+  next();
+};

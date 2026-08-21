@@ -3,13 +3,13 @@ import { expressMiddleware } from '@as-integrations/express5';
 import { GraphQLScalarType, Kind } from 'graphql';
 import global from "../../../global.js";
 import sources from "../../../global/config/source.category.js";
-import { runSuiteModule } from "../runModule/runModule.js";
+import { runSuiteModule } from "../../api/runModule/runModule.js";
 import path from 'path';
 import fs from 'fs/promises';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { parse } from 'acorn';
-import schema from '../schema.js';
+import schema from '../../api/schema.js';
 import jwt from 'jsonwebtoken';
 import {
   verifyPassword,
@@ -360,7 +360,22 @@ export default async () => {
   try {
     const server = new ApolloServer({ typeDefs, resolvers });
     await server.start();
-    // 挂载到 express
+    // 在 GET 请求上提供 GraphQL Playground 页面（在 express 中先注册 GET，使 IDE 访问得到 HTML）
+    try {
+      // lazy import renderPlaygroundPage from graphql-playground-html
+      const { renderPlaygroundPage } = await import('graphql-playground-html');
+      global.server.app.get('/graphql', (req, res) => {
+        res.set('Content-Type', 'text/html');
+        res.send(renderPlaygroundPage({ endpoint: '/graphql' }));
+      });
+      console.log(global.server.app._router?.stack);
+      
+    } catch (e) {
+      // 如果无法加载 playground 包，继续不阻塞服务
+      global.logger.getByContext('GraphQL').warn('graphql-playground-html not available, skipping Playground endpoint');
+    }
+
+    // 挂载到 express，用于处理 POST /graphql（GraphQL 请求）
     global.server.app.use('/graphql', expressMiddleware(server, {
       context: async ({ req }) => ({ req, user: req.user })
     }));
@@ -370,6 +385,4 @@ export default async () => {
     throw err;
   }
 
-  // 返回空路由数组，防止 loader 做其他 REST 注册
-  return [];
 };

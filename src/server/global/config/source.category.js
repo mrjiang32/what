@@ -36,8 +36,8 @@ const defconfig = {
   dirPath: "./",
   exts: [".mjs", ".js", ".cjs", ".json"],
   logger: undefined,
-  maxDepth: 10,
-  dirBlackList: ["node_modules", ".git", "dist", "build"],
+  maxDepth: 1,
+  dirBlackList: ["node_modules", ".git", "dist", "build", "noscan"],
 };
 
 /**
