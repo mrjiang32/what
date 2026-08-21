@@ -5,6 +5,7 @@ const validPackageName = Rule.string().regexp(/^[a-zA-Z0-9@\/._-]+$/).finish()
 
 export default {
     validSuiteName: Rule.string().regexp(/^[a-zA-Z0-9_-]+$/).finish(),
+    // validJsFileName: Rule.string().regexp(/^[a-zA-Z0-9_-]+$/).finish(),
     validPackageName,
     validSuiteInnerName: Rule.equal("main.js").finish(),
     validSettingJSON: Rule.object({
@@ -14,14 +15,9 @@ export default {
         __dependencies: Rule.array("string").items(validPackageName).finish(),
         timeout: Rule.number().finite().finish(),
     }).finish(),
-    validPOSTSettingsJSON: Rule.object().finish()
+    validPOSTSettingsJSON: Rule.object({
+        id: Rule.string().finish(),
+        description: Rule.string().optional().nullable().finish(),
+        timeout: Rule.number().finite().finish(),
+    }).finish()
 }
-
-/**
- * @typedef SuiteSettings
- * @property {string[]} [imports]
- * @property {"allSettled"|"race"|"all"} [mode]
- * @property {number} [timeout]
- * @property {boolean} [trusted] - 标记是否为可信脚本
- * @property {Record<string, boolean>} [perms] - 隔离环境的权限配置
- */

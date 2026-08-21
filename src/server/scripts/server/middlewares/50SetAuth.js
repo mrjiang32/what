@@ -4,6 +4,8 @@ import global from "../../../global.js";
 function authMiddleware(req, res, next) {
   const whiteList = global.whiteList || [];
   if (global.args["no-auth"]) {
+    req.user.id = "admin";
+    req.user.role = "admin";
     return next();
   }
 

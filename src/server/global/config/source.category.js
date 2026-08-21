@@ -129,7 +129,7 @@ const sources = {
             if (result.status === "rejected") {
               logger.error(
                 `[sys:init] Parallel task ${tasks[index].id} failed:`,
-                result.reason,
+                result.reason
               );
             }
           }
@@ -225,41 +225,6 @@ const sources = {
           await (
             await getModuleJob(currentFile, source)
           )();
-        });
-      }
-    },
-  },
-  "/api": {
-    source: new CodeSource({
-      ...defconfig,
-      dirPath: getDir("./api/routes"),
-      exts: [".mjs", ".js", ".cjs"],
-      logger: logger.getByContext("/api").mute(),
-    }),
-    calls: "api",
-    /**
-     * @param {CodeSource} source
-     */
-    additional: async (source) => {
-      const idArray = await source.toIdArray();
-      const logger = global.logger.getByContext("LoadAPI");
-      for (const file of idArray) {
-        const currentFile = file;
-        bus.on("api", async () => {
-          const mod = await getModuleJob(currentFile, source);
-          const apiItems = await mod();
-          for (const route of apiItems) {
-            global.server.app[route.method.toLowerCase()](
-              route.path,
-              route.handler,
-            );
-            logger.debug(
-              chalk.underline("设置路由") +
-                chalk.grey(
-                  `  ${route.method.toUpperCase().padEnd(6)} ${route.path}`,
-                ),
-            );
-          }
         });
       }
     },

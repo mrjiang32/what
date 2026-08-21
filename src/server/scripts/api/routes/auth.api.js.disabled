@@ -75,9 +75,12 @@ function refreshAccessToken(username) {
   );
 }
 
-// ========== 路由导出 ==========
+// 已迁移为 GraphQL，请使用 /graphql 接口
 export default () => {
-  return [
+  return [];
+
+  // 若需要保留 REST 路由，请移除本行并恢复原实现
+[
     // 登录
     {
       path: "/api/auth/login",
