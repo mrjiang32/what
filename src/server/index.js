@@ -2,46 +2,6 @@ import main from "./global/main.js";
 import global from "./global.js";
 import logger, { Logger } from "./global/utils/Logger.mjs";
 
-// Early static GraphiQL endpoint to guarantee GET /graphql returns the playground
-try {
-  const html = `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>GraphiQL</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="https://unpkg.com/graphiql/graphiql.min.css" />
-    <style>html,body,#root{height:100%;margin:0;}</style>
-  </head>
-  <body>
-    <div id="root">Loading...</div>
-    <script crossorigin src="https://unpkg.com/react/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom/umd/react-dom.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/graphiql/graphiql.min.js"></script>
-    <script>
-      const fetcher = GraphiQL.createFetcher({ url: '/graphql' });
-      ReactDOM.createRoot(document.getElementById('root')).render(
-        React.createElement(GraphiQL, { fetcher })
-      );
-    </script>
-  </body>
-</html>`;
-
-  if (global?.server?.app && typeof global.server.app.get === 'function') {
-    global.server.app.get('/graphql', (req, res) => {
-      try {
-        res.set('Content-Type', 'text/html');
-        return res.status(200).send(html);
-      } catch (e) {
-        try { global.logger.getByContext('GraphQL').error('Early GraphiQL handler error', e); } catch (_){ }
-        return res.status(500).send('Internal');
-      }
-    });
-  }
-} catch (e) {
-  try { console.error('Failed to mount early GraphiQL handler', e); } catch (_){ }
-}
-
 global.startTime = Date.now();
 
 await logger.init();
