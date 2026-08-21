@@ -1,4 +1,4 @@
-import { Rule } from "../../global/source/utilities/Rules/Rule.mjs";
+import { Rule } from "../../../global/source/utilities/Rules/Rule.mjs";
 
 const validPackageName = Rule.string().regexp(/^[a-zA-Z0-9@\/._-]+$/).finish()
 

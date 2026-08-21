@@ -1,4 +1,4 @@
-import utils from "../../utils/utils.js";
+import utils from "../utils/utils.js";
 import global from "../../../global.js";
 import sourceMain from "../../../global/main.js";
 import path from "path";

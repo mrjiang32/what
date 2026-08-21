@@ -1,5 +1,5 @@
 import { Worker } from "worker_threads";
-import global from "../../../../global.js";
+import global from "../../../../../global.js"
 import path from "path";
 import { fileURLToPath } from "url"
 

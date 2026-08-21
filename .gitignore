@@ -89,6 +89,7 @@ lerna-debug.log*
 *~
 *.npmrc
 .devcontainer/
+.github/
 
 # ======================================
 # OS junk

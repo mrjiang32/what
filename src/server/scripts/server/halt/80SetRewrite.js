@@ -1,5 +1,5 @@
 import global from "../../../global.js";
-import config from "../../utils/config.js";
+import config from "../utils/config.js";
 
 export default async () => {
   if (global.rewrite) {

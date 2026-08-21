@@ -104,12 +104,24 @@ export class Logger {
     this.name = name;
   }
 
-  trace(...args) { this._inner.trace(...args); }
-  debug(...args) { this._inner.debug(...args); }
-  info(...args)  { this._inner.info(...args); }
-  warn(...args)  { this._inner.warn(...args); }
-  error(...args) { this._inner.error(...args); }
-  fatal(...args) { this._inner.fatal(...args); }
+  trace(...args) {
+    this._inner.trace(...args);
+  }
+  debug(...args) {
+    this._inner.debug(...args);
+  }
+  info(...args) {
+    this._inner.info(...args);
+  }
+  warn(...args) {
+    this._inner.warn(...args);
+  }
+  error(...args) {
+    this._inner.error(...args);
+  }
+  fatal(...args) {
+    this._inner.fatal(...args);
+  }
 
   // 自定义扩展方法
   getByContext(context) {
@@ -123,22 +135,16 @@ export class Logger {
   mute() {
     if (this._muted) return this;
     this._muted = true;
-    this._mutedinner = this._inner;
-    this._inner = {
-      trace: blankFunction,
-      debug: blankFunction,
-      info: blankFunction,
-      warn: this._mutedinner.warn,
-      error: this._mutedinner.error,
-      fatal: blankFunction,
-    }
+    this.debug = blankFunction;
     return this;
   }
 
   unmute() {
     if (!this._muted) return this;
     this._muted = false;
-    this._inner = this._mutedinner;
+    this.debug = (...args) => {
+      this._inner.debug(...args);
+    };
     return this;
   }
 }

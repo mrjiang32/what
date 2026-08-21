@@ -10,5 +10,8 @@
     "clean": "rimraf node_modules package-lock.json",
     "clean:all": "rimraf node_modules package-lock.json src/server/node_modules src/server/package-lock.json src/client/node_modules src/client/package-lock.json",
     "reinstall": "npm run clean:all && concurrently \"npm run server:install\" \"npm run client:install\""
+  },
+  "dependencies": {
+    "log4js": "^6.9.1"
   }
 }

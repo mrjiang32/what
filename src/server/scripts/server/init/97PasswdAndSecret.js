@@ -1,7 +1,7 @@
 import fsPromises from "fs/promises";
 import path from "path";
 import global from "../../../global.js";
-import config from "../../utils/config.js";
+import config from "../utils/config.js";
 
 export default async () => {
   let log = global.logger.getByContext("Passwd");

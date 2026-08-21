@@ -1,6 +1,6 @@
-import config from "../../utils/config.js";
+import config from "../utils/config.js";
 import path from "path";
-import utils from "../../utils/utils.js";
+import utils from "../utils/utils.js";
 import global from "../../../global.js";
 
 const uptimeFilePath = path.join(config.configDirPath, "uptime.json");

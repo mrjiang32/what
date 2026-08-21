@@ -3,7 +3,7 @@ import fsPromises from "fs/promises";
 import path from "path";
 import utils from "./utils.js";
 import { generateSalt, hashPassword } from "./passwd.js";
-import global from "../../global.js";
+import global from "../../../global.js";
 
 const CONFIG_DIR = path.join(global.scan.dir, "config");
 const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
