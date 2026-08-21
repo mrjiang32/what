@@ -11,7 +11,7 @@ jspm_packages/
 # ======================================
 src/client/dist/
 src/server/config/*.json
-src/server/scripts/custom/*
+src/server/scripts/custom/func
 dist/
 build/
 out/
@@ -29,11 +29,6 @@ pids/
 
 # 服务本地配置json（不提交，本地生成）
 src/server/utils/*.json
-
-# 业务模块动态生成目录（不纳入版本）
-src/server/api/modules/hooks/
-src/server/api/modules/actions/
-
 # ======================================
 # Package manager lockfiles
 # 所有目录的lock全部忽略，子项目本地npm install生成
