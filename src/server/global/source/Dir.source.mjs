@@ -11,11 +11,13 @@ const SuiteIdSchema = Rule.string().regexp(/^(?!\.\.\/)(?!\/).+/);
 // settings.json schema
 const SuiteSettingsSchema = Rule.object({
   imports: Rule.array("string").optional(),
-  mode: Rule.or([Rule.type("string").enum(["allSettled", "race", "all"])]).optional(),
+  mode: Rule.or([
+    Rule.type("string").enum(["allSettled", "race", "all"]),
+  ]).optional(),
   timeout: Rule.number().min(1).optional(),
   trusted: Rule.boolean().optional(),
   mainHash: Rule.string().optional(),
-  moduleHash: Rule.object({}).optional()
+  moduleHash: Rule.object({}).optional(),
 });
 
 /**
@@ -104,32 +106,33 @@ export class DirSource extends BaseSource {
     const suiteIds = await this.toIdArray();
     console.debug("[DirSource] 扫描器发现的suiteId列表:", suiteIds);
     const out = [];
-  
+    let invalidIds = [];
+
     for (const suiteId of suiteIds) {
       console.debug("[DirSource] 正在处理套件:", suiteId);
-      if (!SuiteIdSchema.test(suiteId)) {
-        console.warn(`[DirSource] 跳过，suiteId不合法: ${suiteId}`);
-        continue;
-      }
-      const suiteAbs = this.#suiteDir(suiteId);
-      const settingsAbs = path.join(suiteAbs, "settings.json");
-      const mainJsAbs = path.join(suiteAbs, "main.js");
-  
       try {
+        if (!SuiteIdSchema.test(suiteId)) {
+          throw new Error(`[DirSource] 跳过，suiteId不合法: ${suiteId}`);
+        }
+        const suiteAbs = this.#suiteDir(suiteId);
+        const settingsAbs = path.join(suiteAbs, "settings.json");
+        const mainJsAbs = path.join(suiteAbs, "main.js");
+
         const stat = await fs.stat(settingsAbs);
         if (!stat.isFile()) {
-          console.warn(`[DirSource] 不是有效文件: ${settingsAbs}`);
-          continue;
+          throw new Error(`[DirSource] 不是有效文件: ${settingsAbs}`);
         }
-  
+
         const entity = await this.get(suiteId);
         const parsed = JSON.parse(entity.rawText);
         const schemaCheck = SuiteSettingsSchema.validate(parsed);
         if (!schemaCheck.ok) {
-          console.warn(`[DirSource] 套件 ${suiteId} Schema校验失败`, schemaCheck.failures);
-          continue;
+          throw new Error(
+            `[DirSource] 套件 ${suiteId} Schema校验失败`,
+            schemaCheck.failures,
+          );
         }
-  
+
         let hasMainJs = false;
         try {
           await fs.stat(mainJsAbs);
@@ -137,12 +140,12 @@ export class DirSource extends BaseSource {
         } catch {
           hasMainJs = false;
         }
-  
+
         out.push({
           suiteId,
           settingsAbs,
           mainJsAbs: hasMainJs ? mainJsAbs : undefined,
-          hasMainJs
+          hasMainJs,
         });
         console.debug(`[DirSource] 有效套件已加入列表: ${suiteId}`);
       } catch (err) {
@@ -168,7 +171,9 @@ export class DirSource extends BaseSource {
     try {
       parsed = JSON.parse(entity.rawText);
     } catch (e) {
-      throw new Error(`套件 ${suiteId} settings.json JSON解析失败`, { cause: e });
+      throw new Error(`套件 ${suiteId} settings.json JSON解析失败`, {
+        cause: e,
+      });
     }
 
     const check = SuiteSettingsSchema.validate(parsed);

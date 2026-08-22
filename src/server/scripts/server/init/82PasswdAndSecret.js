@@ -2,10 +2,11 @@ import fsPromises from "fs/promises";
 import path from "path";
 import global from "../../../global.js";
 import config from "../utils/config.js";
+import { setAuthSecret } from "../utils/auth.js";
 
 export default async () => {
   let log = global.logger.getByContext("Passwd");
-  global.auth.secret = global.config.secret;
+  setAuthSecret(global.config.secret);
 
   if(!global.users.admin?.defaultPasswd) return;
 

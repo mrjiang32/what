@@ -13,11 +13,6 @@ export const typeDefs = `
     settings: JSON
   }
 
-  type AuthPayload {
-    token: String!
-    username: String!
-  }
-
   type ExecResult { result: JSON }
 
   type Query {
@@ -25,16 +20,9 @@ export const typeDefs = `
     listSuites: [String!]!
     getSuite(suiteName: String!): Suite
     npmList(suiteName: String!): JSON
-    validate: JSON
   }
 
   type Mutation {
-    login(username: String!, password: String!): AuthPayload
-    logout: Boolean
-    refresh: String
-    changePassword(password: String!, newPassword: String!, confirmPassword: String!): Boolean
-    newUser(username: String!, password: String!, confirmPassword: String!): Boolean
-
     createSuite(suiteName: String!, settingsRaw: String, mainJsRaw: String): Boolean
     updateSuiteFile(suiteName: String!, fileName: String!, raw: String!): Boolean
     execSuite(suiteName: String!, params: JSON): ExecResult

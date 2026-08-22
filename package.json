@@ -1,6 +1,7 @@
 {
   "scripts": {
     "server:dev": "cd ./src/server && npm run dev",
+    "server:noAuthDev": "cd ./src/server && npm run noAuthDev",
     "server:install": "cd ./src/server && npm install",
     "client:dev": "cd ./src/client && npm run dev",
     "client:install": "cd ./src/client && npm install",

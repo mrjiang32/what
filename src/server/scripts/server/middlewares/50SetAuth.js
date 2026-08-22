@@ -1,81 +1,92 @@
 import jwt from "jsonwebtoken";
 import global from "../../../global.js";
+import { getAuthSecret, getUsernameByToken, hasToken } from "../utils/auth.js";
+
+function extractToken(req) {
+  const authHeader = req.headers.authorization;
+  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+    return authHeader.slice(7).trim();
+  }
+  if (req.cookies?.access_token) {
+    return req.cookies.access_token;
+  }
+  return null;
+}
+
+function getGraphqlQuery(req) {
+  const body = req.body;
+  if (typeof body === "string") {
+    return body;
+  }
+  if (body && typeof body === "object") {
+    return typeof body.query === "string" ? body.query : "";
+  }
+  return typeof req.query?.query === "string" ? req.query.query : "";
+}
+
+function requireGraphqlAdmin(req) {
+  if (!req.originalUrl?.startsWith("/graphql") && !req.url?.startsWith("/graphql")) {
+    return false;
+  }
+
+  const query = getGraphqlQuery(req);
+  if (!query) {
+    return false;
+  }
+
+  return /(?:\brequestSudo\b|\bvalidateSudo\b)/.test(query);
+}
 
 function authMiddleware(req, res, next) {
-  const whiteList = global.whiteList || [];
-  if (global.args["no-auth"]) {
-    req.user.id = "admin";
-    req.user.role = "admin";
+  const whiteList = Array.isArray(global.whiteList) ? global.whiteList : [];
+  const requestPath = (req.originalUrl || req.url || "").split("?")[0];
+
+  if (global.args?.["no-auth"]) {
+    req.user = { ...(req.user || {}), id: "admin", role: "admin" };
     return next();
   }
 
-  // 仅对 /api 下接口生效
-  if (!req.url.startsWith("/api")) {
+  if (whiteList.includes(requestPath)) {
     return next();
   }
 
-  // 白名单内的接口直接放行
-  if (whiteList.includes(req.url)) {
-    return next();
-  }
+  const secret = getAuthSecret();
+  const token = extractToken(req);
 
-  const secret = global.auth.secret;
-  let token = null;
-
-  // 从 Authorization Header 提取 token
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith("Bearer ")) {
-    token = authHeader.slice(7);
-  }
-
-  // 如果 Header 中没有，尝试从 Cookie 中提取
-  if (!token && req.cookies?.access_token) {
-    token = req.cookies.access_token;
-  }
-
-  // 没有 token，拒绝访问
   if (!token) {
-    return res.status(401).json({
-      ok: false,
-      err: "Access denied",
-    });
+    return res.status(401).json({ ok: false, err: "Access denied" });
   }
 
   try {
-    // 验证 JWT 签名和有效期
     const payload = jwt.verify(token, secret);
 
-    // 检查 token 是否存在于服务端的 tokenMap 中
-    if (!global.auth.tokenMap.has(token)) {
+    if (!hasToken(token)) {
       return res.status(401).json({ ok: false, err: "Token invalid" });
     }
 
-    const username = global.auth.tokenMap.get(token);
+    const username = getUsernameByToken(token);
 
-    // 安全地解析 user cookie
     let cookieUser;
     try {
-      cookieUser = typeof req.cookies?.user === 'string'
+      cookieUser = typeof req.cookies?.user === "string"
         ? JSON.parse(req.cookies.user)
         : req.cookies?.user;
-    } catch (parseError) {
+    } catch {
       return res.status(401).json({ ok: false, err: "Invalid user cookie format" });
     }
 
-    // 校验 cookie 中的 token 和 userInfo 是否与服务端 tokenMap 一致
-    // 防止客户端篡改 cookie 冒充其他用户
-    if (
-      !cookieUser ||
-      cookieUser.token !== token ||
-      cookieUser.userInfo !== username
-    ) {
-      return res.status(401).json({ ok: false, err: "Cookie mismatch" });
+    if (req.cookies && Object.prototype.hasOwnProperty.call(req.cookies, "user")) {
+      if (!cookieUser || cookieUser.token !== token || cookieUser.userInfo !== username) {
+        return res.status(401).json({ ok: false, err: "Cookie mismatch" });
+      }
     }
 
-    // 校验全部通过，挂载用户信息
+    if (requireGraphqlAdmin(req) && payload.role !== "admin") {
+      return res.status(403).json({ ok: false, err: "Forbidden" });
+    }
+
     req.user = payload;
     next();
-
   } catch (err) {
     if (err.name === "TokenExpiredError") {
       return res.status(401).json({ ok: false, err: "Token expired" });

@@ -11,7 +11,7 @@ const types = Object.freeze({
 });
 
 export class Rule {
-  constructor() {
+  constructor(name = "Rule") {
     /**
      * @typedef {{
      *   id:string,
@@ -20,12 +20,19 @@ export class Rule {
      * }} RuleEntry
      * @type {RuleEntry[]}
      */
+    this.name = name;
     this._rules = [];
+  }
+
+  named(name) {
+    this.name = name;
+    return this;
   }
 
   equal(value_p) {
     this._rules.push({
       id: "equal",
+      expect: value_p,
       conditioner: (value) => value === value_p,
     });
 
@@ -42,6 +49,7 @@ export class Rule {
   reverse(rule) {
     this._rules.push({
       id: "reverse-rule",
+      expect: rule,
       conditioner: (value) => !rule.test(value),
     });
 
@@ -101,6 +109,7 @@ export class Rule {
     }
     this._rules.push({
       id: "instanceOf",
+      expect: ctor?.name || String(ctor),
       type: ctor,
       conditioner: (value) => value instanceof ctor,
     });
@@ -117,6 +126,7 @@ export class Rule {
     }
     this._rules.push({
       id: "match",
+      expect: "custom predicate",
       conditioner: (value) => {
         const ret = conditioner(value);
         return Boolean(ret);
@@ -211,6 +221,7 @@ export class Rule {
     }
     this._rules.push({
       id: "items",
+      expect: "array items",
       itemRule,
       conditioner: (value) => {
         if (!Array.isArray(value)) return false;
@@ -231,6 +242,7 @@ export class Rule {
     }
     this._rules.push({
       id: "or",
+      expect: "one of alternatives",
       rules,
       conditioner: (value) => rules.some((r) => r.test(value)),
     });
@@ -245,6 +257,7 @@ export class Rule {
     if (!Array.isArray(allowedValues)) throw new Error(".enum accept array");
     this._rules.push({
       id: "enum",
+      expect: allowedValues,
       allowed: allowedValues,
       conditioner: (value) => allowedValues.includes(value),
     });
@@ -258,6 +271,7 @@ export class Rule {
   min(minVal) {
     this._rules.push({
       id: "min",
+      expect: minVal,
       min: minVal,
       conditioner: (v) => typeof v === "number" && v >= minVal,
     });
@@ -271,6 +285,7 @@ export class Rule {
   max(maxVal) {
     this._rules.push({
       id: "max",
+      expect: maxVal,
       max: maxVal,
       conditioner: (v) => typeof v === "number" && v <= maxVal,
     });
@@ -284,6 +299,7 @@ export class Rule {
   minLength(len) {
     this._rules.push({
       id: "minLength",
+      expect: len,
       len,
       conditioner: (v) => typeof v === "string" && v.length >= len,
     });
@@ -297,6 +313,7 @@ export class Rule {
   maxLength(len) {
     this._rules.push({
       id: "maxLength",
+      expect: len,
       len,
       conditioner: (v) => typeof v === "string" && v.length <= len,
     });
@@ -311,6 +328,7 @@ export class Rule {
     if (!(re instanceof RegExp)) throw new Error("regexp need RegExp instance");
     this._rules.push({
       id: "regexp",
+      expect: re,
       regex: re,
       conditioner: (v) => typeof v === "string" && re.test(v),
     });
@@ -406,6 +424,7 @@ export class Rule {
   length(len) {
     this._rules.push({
       id: "length",
+      expect: len,
       conditioner: (value) => value?.length === len,
     });
     return this;
@@ -468,9 +487,215 @@ export class Rule {
   finite() {
     this._rules.push({
       id: "isFinite",
-      conditioner: Number.isFinite
+      expect: "finite number",
+      conditioner: Number.isFinite,
     });
     return this;
+  }
+
+  verbose(value, options = {}) {
+    const rootName = options.name ?? this.name ?? "Rule";
+    const lines = [`Checking Rule \`${rootName}\``];
+    const indent = (n) => "  ".repeat(n);
+    const displayValue = (v) => {
+      if (v === null) return "null";
+      if (v === undefined) return "undefined";
+      if (Array.isArray(v)) return "array";
+      if (typeof v === "object") return "object";
+      return typeof v;
+    };
+
+    const describeActual = (rule, currentValue) => {
+      switch (rule.id) {
+        case "typeOf":
+        case "typeOfArray":
+        case "typeOfNull":
+        case "typeOfUndefined":
+          return displayValue(currentValue);
+        case "length":
+        case "minLength":
+        case "maxLength":
+          return String(currentValue?.length ?? "undefined");
+        case "hashlike":
+          return String(rule.expect ?? "hash");
+        case "equal":
+          return String(rule.expect ?? "value");
+        case "enum":
+          return currentValue === undefined ? "undefined" : String(currentValue);
+        case "min":
+        case "max":
+          return currentValue === undefined ? "undefined" : String(currentValue);
+        case "instanceOf":
+          return currentValue?.constructor?.name ?? typeof currentValue;
+        case "regexp":
+          return currentValue === undefined ? "undefined" : String(currentValue);
+        default:
+          return "ok";
+      }
+    };
+
+    const labelFor = (rule) => {
+      switch (rule.id) {
+        case "typeOf":
+        case "typeOfArray":
+        case "typeOfNull":
+        case "typeOfUndefined":
+          return `type expect ${rule.expect ?? "value"}`;
+        case "length":
+          return `length expect === ${rule.expect ?? "?"}`;
+        case "minLength":
+          return `length expect >= ${rule.expect ?? "?"}`;
+        case "maxLength":
+          return `length expect <= ${rule.expect ?? "?"}`;
+        case "hashlike":
+          return `hashlike  ${rule.expect ?? "md5"}`;
+        case "equal":
+          return `equal expect === ${String(rule.expect ?? "?")}`;
+        case "enum":
+          return `enum expect ${Array.isArray(rule.expect) ? rule.expect.join(" | ") : "?"}`;
+        case "min":
+          return `min expect >= ${rule.expect ?? "?"}`;
+        case "max":
+          return `max expect <= ${rule.expect ?? "?"}`;
+        case "instanceOf":
+          return `instanceof ${String(rule.expect ?? "?")}`;
+        case "regexp":
+          return `regexp expect ${String(rule.expect ?? "?")}`;
+        case "match":
+          return "match custom predicate";
+        case "reverse-rule":
+          return "reverse rule";
+        case "items":
+          return "items";
+        case "or":
+          return "or";
+        default:
+          return String(rule.id ?? "rule");
+      }
+    };
+
+    const renderLeaf = (path, rule, currentValue, depth) => {
+      let ok = false;
+      try {
+        ok = Boolean(rule.conditioner(currentValue));
+      } catch {
+        ok = false;
+      }
+
+      const text = `${indent(depth)}- ${path}`;
+      const summary = `${labelFor(rule)} --- ${ok ? "PASS" : "ERROR"} ${ok ? describeActual(rule, currentValue) : "don't match"}`;
+      lines.push(`${text}\n${indent(depth + 1)}- ${summary}`);
+    };
+
+    const renderOr = (path, rule, currentValue, depth) => {
+      const branchLines = [];
+      const branches = Array.isArray(rule.rules) ? rule.rules : [];
+      for (const subRule of branches) {
+        if (!(subRule instanceof Rule)) continue;
+        const branch = [];
+        const walkRules = (rules, value) => {
+          for (const item of rules) {
+            if (item.id === "child" || item.id === "strictChild") {
+              const obj = item.childRules;
+              if (obj && typeof obj === "object") {
+                const entries = Object.entries(obj);
+                for (const [k, r] of entries) {
+                  if (!(r instanceof Rule)) continue;
+                  const nextValue = value && typeof value === "object" ? value[k] : undefined;
+                  branch.push(`${indent(depth + 2)}- ${path}.${k}\n${indent(depth + 3)}- ${labelFor(r)} --- ${r.test(nextValue) ? "PASS" : "ERROR"} ${r.test(nextValue) ? describeActual(r, nextValue) : "don't match"}`);
+                }
+              }
+              continue;
+            }
+            branch.push(`${indent(depth + 2)}- ${labelFor(item)} --- ${item.conditioner(value) ? "PASS" : "ERROR"} ${item.conditioner(value) ? describeActual(item, value) : "don't match"}`);
+          }
+        };
+        walkRules(subRule._rules, currentValue);
+        branchLines.push(`${indent(depth + 1)}- or\n${branch.join("\n")}`);
+      }
+      lines.push(`${indent(depth)}- ${path}`);
+      lines.push(...branchLines);
+    };
+
+    const renderObject = (path, value, rules, depth) => {
+      lines.push(`${indent(depth)}- ${path}`);
+
+      for (const rule of rules) {
+        if (rule.id === "or" && Array.isArray(rule.rules)) {
+          renderOr(path, rule, value, depth + 1);
+          continue;
+        }
+
+        if (rule.id === "child" || rule.id === "strictChild") {
+          const entries = rule.childRules && typeof rule.childRules === "object" ? Object.entries(rule.childRules) : [];
+          for (const [key, childRule] of entries) {
+            if (!(childRule instanceof Rule)) continue;
+            const childValue = value && typeof value === "object" ? value[key] : undefined;
+            const nextPath = `${path}.${key}`;
+            if (childRule._rules.some((entry) => (entry.id === "child" || entry.id === "strictChild" || entry.id === "items") || (entry.id === "typeOf" && (entry.expect === "object" || entry.expect === "array")))) {
+              renderObject(nextPath, childValue, childRule._rules, depth + 1);
+              continue;
+            }
+            lines.push(`${indent(depth + 1)}- ${nextPath}`);
+            for (const childEntry of childRule._rules) {
+              let ok = false;
+              try {
+                ok = Boolean(childEntry.conditioner(childValue));
+              } catch {
+                ok = false;
+              }
+              lines.push(`${indent(depth + 2)}- ${labelFor(childEntry)} --- ${ok ? "PASS" : "ERROR"} ${ok ? describeActual(childEntry, childValue) : "don't match"}`);
+            }
+          }
+          continue;
+        }
+
+        if (rule.id === "items" && rule.itemRule instanceof Rule) {
+          lines.push(`${indent(depth + 1)}- ${path}`);
+          if (!Array.isArray(value)) {
+            lines.push(`${indent(depth + 2)}- ${labelFor(rule)} --- ERROR don't match`);
+            continue;
+          }
+          for (let idx = 0; idx < value.length; idx += 1) {
+            const itemPath = `${path}[${idx}]`;
+            const item = value[idx];
+            lines.push(`${indent(depth + 1)}- ${itemPath}`);
+            for (const itemRule of rule.itemRule._rules) {
+              let ok = false;
+              try {
+                ok = Boolean(itemRule.conditioner(item));
+              } catch {
+                ok = false;
+              }
+              lines.push(`${indent(depth + 2)}- ${labelFor(itemRule)} --- ${ok ? "PASS" : "ERROR"} ${ok ? describeActual(itemRule, item) : "don't match"}`);
+            }
+          }
+          continue;
+        }
+
+        let ok = false;
+        try {
+          ok = Boolean(rule.conditioner(value));
+        } catch {
+          ok = false;
+        }
+        lines.push(`${indent(depth + 1)}- ${labelFor(rule)} --- ${ok ? "PASS" : "ERROR"} ${ok ? describeActual(rule, value) : "don't match"}`);
+      }
+    };
+
+    renderObject("value", value, this._rules, 0);
+
+    const output = lines.join("\n");
+    if (!options.silent) {
+      console.log(output);
+    }
+
+    return {
+      name: rootName,
+      ok: this.test(value),
+      lines,
+      output,
+    };
   }
 
   finish() {

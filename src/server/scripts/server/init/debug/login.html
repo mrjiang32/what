@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Developer Debug Login</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        margin: 0;
+      }
+      .card {
+        max-width: 720px;
+        background: #111827;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+      }
+      code {
+        background: #0b1120;
+        border: 1px solid #334155;
+        padding: 10px 12px;
+        border-radius: 8px;
+        display: block;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      button {
+        background: #22c55e;
+        color: #062410;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>Developer debug login</h2>
+      <p>Token is valid for 1 hour and has admin role.</p>
+      <p>Tip: If you don't want to see this for security, please remove '--debug' option in your start command.</p>
+      <p>IMPORTANT: DON'T EXPOSE IT TO PUBLIC</p>
+      <code id="token">${payload.token}</code>
+      <p>
+        <button
+          type="button"
+          onclick="
+            navigator.clipboard.writeText(
+              document.getElementById('token').textContent,
+            );
+            this.textContent = 'Copied';
+          "
+        >
+          Copy token
+        </button>
+      </p>
+      <p>
+        Use as:
+        <code id="header">{ "authorization": "Bearer ${payload.token}" }</code>
+      </p>
+      <p>
+        <button
+          type="button"
+          onclick="
+            navigator.clipboard.writeText(
+              document.getElementById('header').textContent,
+            );
+            this.textContent = 'Copied';
+          "
+        >
+          Copy header JSON
+        </button>
+      </p>
+    </div>
+  </body>
+</html>

@@ -7,12 +7,6 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { parse } from 'acorn';
 import schema from '../../utils/schema.js';
-import jwt from 'jsonwebtoken';
-import {
-  verifyPassword,
-  hashPassword,
-  generateSalt,
-} from '../../utils/passwd.js';
 import config from '../../utils/config.js';
 
 const execFileAsync = promisify(execFile);
@@ -67,27 +61,7 @@ export async function npmList(suiteDir) {
   return JSON.parse(stdout);
 }
 
-// auth helpers
-export function assertExists(value, message) { if (!value) throw new Error(message); }
-export function validatePassword(password, label = 'Password') {
-  assertExists(password, `${label} not found`);
-  if (password.length < 8) throw new Error(`${label} length must be at least 8`);
-  if (password.includes(' ')) throw new Error(`${label} cannot contain space`);
-}
-export function assertPasswordMatch(pwd1, pwd2, message = 'Passwords do not match') { if (pwd1 !== pwd2) throw new Error(message); }
+// // auth helpers
 
-export function signAccessToken(user) {
-  assertExists(user.username, 'User `username` property not found');
-  assertExists(user.password, 'User `password` property not found');
-  const userConfig = global.users[user.username];
-  if (!userConfig) throw new Error('Password or username not match');
-  const isValid = verifyPassword(user.password, userConfig.salt, userConfig.shadow);
-  if (!isValid) throw new Error('Password or username not match');
-  return jwt.sign({ id: user.username, role: userConfig.role ?? 'default' }, global.auth.secret, { expiresIn: '2h' });
-}
-export function refreshAccessToken(username) {
-  const userConfig = global.users[username];
-  return jwt.sign({ id: username, role: userConfig?.role ?? 'default' }, global.auth.secret, { expiresIn: '2h' });
-}
 
 export { runSuiteModule };

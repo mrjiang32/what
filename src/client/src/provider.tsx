@@ -25,7 +25,7 @@ type AuthAction =
 interface AuthContextType extends AuthState {
   login: (token: string, userInfo: UserInfo) => void;
   logout: () => void;
-  state: AuthState
+  state: AuthState;
 }
 
 const initialState: AuthState = {
@@ -67,26 +67,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       {
         path: "/",
-        maxAge: 3600 * 6, // 6小时后过期
+        maxAge: 3600 * 6,
         sameSite: "lax",
       },
     );
     dispatch({ type: "LOGIN", payload: { token, userInfo } });
   };
 
-  const logout = () => {
-    logoutServer(state.userInfo, state.token);
-    removeCookies("user", { path: "/" });
-    dispatch({ type: "LOGOUT" });
-  };
-
   const logoutServer = async (user: UserInfo | null, token: string | null) => {
-    return await fetch("/api/auth/logout", {
+    if (!token) return null;
+
+    return await fetch("/auth/logout", {
+      method: "POST",
       headers: {
         authorization: `Bearer ${token}`,
-        userInfo: `${user?.username}`,
+        "Content-Type": "application/json",
+        userInfo: user?.username ?? "",
       },
     }).then((res) => res.json());
+  };
+
+  const logout = () => {
+    void logoutServer(state.userInfo, state.token);
+    removeCookies("user", { path: "/" });
+    dispatch({ type: "LOGOUT" });
   };
 
   useEffect(() => {
@@ -101,17 +105,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        // ✅ 核心修复：请求校验接口必须带 Bearer Token 请求头
-        const res = await fetch("/api/auth/validate", {
+        const res = await fetch("/auth/validate", {
           headers: {
             authorization: `Bearer ${savedToken}`,
-            userInfo: savedUser,
+            userInfo: savedUser ?? "",
           },
         });
         const data = await res.json();
 
         if (data.ok) {
-          // 校验通过，恢复登录态
           dispatch({
             type: "LOGIN",
             payload: {
@@ -128,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    checkAuth();
+    void checkAuth();
   }, []);
 
   return (
