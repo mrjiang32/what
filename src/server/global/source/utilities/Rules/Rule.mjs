@@ -1,3 +1,5 @@
+import chalk from "chalk";
+
 const types = Object.freeze({
   string: String,
   number: Number,
@@ -9,6 +11,9 @@ const types = Object.freeze({
   symbol: Symbol,
   function: Function,
 });
+
+const PASS = chalk.green("PASS")
+const ERROR = chalk.red("ERROR");
 
 export class Rule {
   constructor(name = "Rule") {
@@ -534,44 +539,71 @@ export class Rule {
       }
     };
 
+    const summarizeNestedRule = (candidate) => {
+      if (!(candidate instanceof Rule)) return "rule";
+      if (candidate._rules.length === 0) return candidate.name ?? "rule";
+      if (candidate._rules.length === 1) return labelFor(candidate._rules[0]);
+      const summary = candidate._rules
+        .map((entry) => {
+          if (entry.id === "child" || entry.id === "strictChild") {
+            const keys = entry.childRules && typeof entry.childRules === "object" ? Object.keys(entry.childRules) : [];
+            return keys.length ? `object(${keys.join(", ")})` : "object";
+          }
+          if (entry.id === "items") return "array items";
+          return entry.id ?? "rule";
+        })
+        .filter(Boolean);
+      return summary.length ? summary.join(" + ") : (candidate.name ?? "rule");
+    };
+
     const labelFor = (rule) => {
       switch (rule.id) {
         case "typeOf":
         case "typeOfArray":
         case "typeOfNull":
         case "typeOfUndefined":
-          return `type expect ${rule.expect ?? "value"}`;
+          return `[type] expect ${rule.expect ?? "value"}`;
         case "length":
-          return `length expect === ${rule.expect ?? "?"}`;
+          return `[length] expect === ${rule.expect ?? "?"}`;
         case "minLength":
-          return `length expect >= ${rule.expect ?? "?"}`;
+          return `[length] expect >= ${rule.expect ?? "?"}`;
         case "maxLength":
-          return `length expect <= ${rule.expect ?? "?"}`;
+          return `[length] expect <= ${rule.expect ?? "?"}`;
         case "hashlike":
-          return `hashlike  ${rule.expect ?? "md5"}`;
+          return `[hashlike] expect ${rule.expect ?? "md5"}`;
         case "equal":
-          return `equal expect === ${String(rule.expect ?? "?")}`;
+          return `[equal] expect === ${String(rule.expect ?? "?")}`;
         case "enum":
-          return `enum expect ${Array.isArray(rule.expect) ? rule.expect.join(" | ") : "?"}`;
+          return `[enum] expect one of ${Array.isArray(rule.expect) ? rule.expect.join(" | ") : "?"}`;
         case "min":
-          return `min expect >= ${rule.expect ?? "?"}`;
+          return `[min] expect >= ${rule.expect ?? "?"}`;
         case "max":
-          return `max expect <= ${rule.expect ?? "?"}`;
+          return `[max] expect <= ${rule.expect ?? "?"}`;
         case "instanceOf":
-          return `instanceof ${String(rule.expect ?? "?")}`;
+          return `[instanceof] ${String(rule.expect ?? "?")}`;
         case "regexp":
-          return `regexp expect ${String(rule.expect ?? "?")}`;
+          return `[regexp] match ${String(rule.expect ?? "?")}`;
         case "match":
-          return "match custom predicate";
+          return "[match custom predicate]";
         case "reverse-rule":
-          return "reverse rule";
+          return rule.expect instanceof Rule ? `[reverse] !${summarizeNestedRule(rule.expect)}` : "[reverse rule]";
         case "items":
-          return "items";
+          return "[items]";
         case "or":
-          return "or";
+          return "[or]";
         default:
           return String(rule.id ?? "rule");
       }
+    };
+
+    const formatResult = (ok, label, actual) => {
+      const status = ok ? "PASS" : "ERROR";
+      let detail = ok ? `| actual ${actual}` : `| actual ${actual} not match`;
+      if(label === "[or]") {
+        detail = "";
+      }
+      const text = `${status} ${label} ${detail}`;
+      return ok ? chalk.green(text) : chalk.red(text);
     };
 
     const renderLeaf = (path, rule, currentValue, depth) => {
@@ -583,7 +615,7 @@ export class Rule {
       }
 
       const text = `${indent(depth)}- ${path}`;
-      const summary = `${labelFor(rule)} --- ${ok ? "PASS" : "ERROR"} ${ok ? describeActual(rule, currentValue) : "don't match"}`;
+      const summary = formatResult(ok, labelFor(rule), ok ? describeActual(rule, currentValue) : "");
       lines.push(`${text}\n${indent(depth + 1)}- ${summary}`);
     };
 
@@ -602,12 +634,14 @@ export class Rule {
                 for (const [k, r] of entries) {
                   if (!(r instanceof Rule)) continue;
                   const nextValue = value && typeof value === "object" ? value[k] : undefined;
-                  branch.push(`${indent(depth + 2)}- ${path}.${k}\n${indent(depth + 3)}- ${labelFor(r)} --- ${r.test(nextValue) ? "PASS" : "ERROR"} ${r.test(nextValue) ? describeActual(r, nextValue) : "don't match"}`);
+                  const isOk = r.test(nextValue);
+                  branch.push(`${indent(depth + 2)}- ${path}.${k}\n${indent(depth + 3)}- ${formatResult(isOk, labelFor(r), isOk ? describeActual(r, nextValue) : "")}`);
                 }
               }
               continue;
             }
-            branch.push(`${indent(depth + 2)}- ${labelFor(item)} --- ${item.conditioner(value) ? "PASS" : "ERROR"} ${item.conditioner(value) ? describeActual(item, value) : "don't match"}`);
+            const isOk = Boolean(item.conditioner(value));
+            branch.push(`${indent(depth + 2)}- ${formatResult(isOk, labelFor(item), isOk ? describeActual(item, value) : "")}`);
           }
         };
         walkRules(subRule._rules, currentValue);
@@ -623,6 +657,15 @@ export class Rule {
       for (const rule of rules) {
         if (rule.id === "or" && Array.isArray(rule.rules)) {
           renderOr(path, rule, value, depth + 1);
+          continue;
+        }
+
+        if (rule.id === "reverse-rule" && rule.expect instanceof Rule) {
+          const ok = Boolean(rule.conditioner(value));
+          lines.push(`${indent(depth + 1)}- ${formatResult(ok, labelFor(rule), ok ? "expected not to match" : "still matches")}`);
+          if (rule.expect._rules.length > 0) {
+            renderObject(`${path} (reverse expect)`, value, rule.expect._rules, depth + 1);
+          }
           continue;
         }
 
@@ -644,7 +687,7 @@ export class Rule {
               } catch {
                 ok = false;
               }
-              lines.push(`${indent(depth + 2)}- ${labelFor(childEntry)} --- ${ok ? "PASS" : "ERROR"} ${ok ? describeActual(childEntry, childValue) : "don't match"}`);
+              lines.push(`${indent(depth + 2)}- ${formatResult(ok, labelFor(childEntry), ok ? describeActual(childEntry, childValue) : "")}`);
             }
           }
           continue;
@@ -653,7 +696,7 @@ export class Rule {
         if (rule.id === "items" && rule.itemRule instanceof Rule) {
           lines.push(`${indent(depth + 1)}- ${path}`);
           if (!Array.isArray(value)) {
-            lines.push(`${indent(depth + 2)}- ${labelFor(rule)} --- ERROR don't match`);
+            lines.push(`${indent(depth + 2)}- ${formatResult(false, labelFor(rule), "")}`);
             continue;
           }
           for (let idx = 0; idx < value.length; idx += 1) {
@@ -667,7 +710,7 @@ export class Rule {
               } catch {
                 ok = false;
               }
-              lines.push(`${indent(depth + 2)}- ${labelFor(itemRule)} --- ${ok ? "PASS" : "ERROR"} ${ok ? describeActual(itemRule, item) : "don't match"}`);
+              lines.push(`${indent(depth + 2)}- ${formatResult(ok, labelFor(itemRule), ok ? describeActual(itemRule, item) : "")}`);
             }
           }
           continue;
@@ -679,7 +722,7 @@ export class Rule {
         } catch {
           ok = false;
         }
-        lines.push(`${indent(depth + 1)}- ${labelFor(rule)} --- ${ok ? "PASS" : "ERROR"} ${ok ? describeActual(rule, value) : "don't match"}`);
+        lines.push(`${indent(depth + 1)}- ${formatResult(ok, labelFor(rule), ok ? describeActual(rule, value) : "")}`);
       }
     };
 

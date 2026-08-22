@@ -1,7 +1,3 @@
-import global from "../../../global.js";
+import { save } from "../utils/auth.js";
 
-export default async () => {
-    if(global.auth.tokenMap) {
-        
-    }
-}
+export default save;

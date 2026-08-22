@@ -79,6 +79,8 @@ const unionRule = Rule.object({
   ]).named('selectorUnion'),
 }).finish().named('UnionCheck');
 
+const reverseRule = new Rule('ReverseLenCheck').reverse(Rule.string().minLength(3).finish()).finish();
+
 console.log('=== valid session token ===');
 console.log(tokenRule.test(validPayload));
 tokenRule.verbose(validPayload);
@@ -101,6 +103,12 @@ unionRule.verbose({ selector: 'a'.repeat(32) });
 console.log(unionRule.test({ selector: 3 }));
 unionRule.verbose({ selector: 3 });
 
+console.log('\n=== reverse rule ===');
+console.log(reverseRule.test('ab'));
+reverseRule.verbose('ab');
+console.log(reverseRule.test('abcd'));
+reverseRule.verbose('abcd');
+
 console.log('\n=== summary ===');
 console.log({
   validSession: tokenRule.test(validPayload),
@@ -109,4 +117,6 @@ console.log({
   invalidComplex: nestedRule.test(complexInvalidPayload),
   validUnion: unionRule.test({ selector: 'a'.repeat(32) }),
   numberUnion: unionRule.test({ selector: 3 }),
+  reverseShort: reverseRule.test('ab'),
+  reverseLong: reverseRule.test('abcd'),
 });
