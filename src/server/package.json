@@ -21,7 +21,7 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "node --trace-warnings --trace-deprecation --no-node-snapshot ./index.js --debug",
+    "dev": "node --trace-warnings --trace-deprecation --no-node-snapshot ./index.js",
     "noAuthDev": "node --trace-warnings --trace-deprecation --no-node-snapshot ./index.js --debug --no-auth"
   },
   "allowScripts": {

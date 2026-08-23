@@ -35,6 +35,7 @@ export default function responseLogger(req, res, next) {
     // 响应结束后打印日志
     res.on("finish", () => {
       const duration = Date.now() - start;
+      const body = JSON.stringify(req.body);
       global.logger.debug(
         "Response:\n",
         JSON.stringify(
@@ -43,13 +44,19 @@ export default function responseLogger(req, res, next) {
             method: req.method,
             status: res.statusCode,
             duration: `${duration}ms`,
-            request: req.body,
-            headers: req.headers,
+            request: (body?.length ?? 0) > 100
+                ? body.slice(0, 99) + "..."
+                : body,
+            headers: {
+              host: req?.headers?.host,
+              "content-length": req?.headers?.["content-length"],
+              authorization: req?.headers.authorization,
+            },
             response:
               (responseBody?.length ?? 0) > 100
                 ? responseBody.slice(0, 99) + "..."
                 : responseBody,
-            err: res.$error ?? req?.body?.error ?? req?.body?.err ?? null,
+            err: res.$error ?? req?.body?.error ?? req?.body?.err ?? undefined,
           },
           null,
           2,
