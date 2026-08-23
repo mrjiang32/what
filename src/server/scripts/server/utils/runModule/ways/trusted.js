@@ -34,8 +34,8 @@ export default async function runTrusted(filePath, params, timeoutMs, suiteName)
         logger[level](args);
       }
       // 同时通过 TaskManager 推送给 WS 客户端
-      TaskManager._broadcastMessage &&
-        TaskManager._broadcastMessage(taskId, {
+      TaskManager.log &&
+        TaskManager.log(taskId, {
           type: 'log',
           level,
           args: msg.args,

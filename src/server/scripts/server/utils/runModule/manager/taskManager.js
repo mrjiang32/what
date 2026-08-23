@@ -1,69 +1,63 @@
-// src/server/tasks/TaskManager.js
+// src/server/runModule/manager/taskManager.js
+
 class TaskManager {
   constructor() {
-    // Map<taskId, { worker, resolve, reject, timer, filePath, params, timeoutMs }>
     this.tasks = new Map();
+    // 每个 taskId 维护一个日志缓冲（最多保留最近 N 条）
+    this.logBuffers = new Map();
+    // 支持多个订阅者，避免回调被覆盖
+    this.messageListeners = new Set();
+    this.MAX_BUFFER_SIZE = 500;
+  }
+
+  // --- 订阅管理 ---
+
+  addOnMessage(fn) {
+    this.messageListeners.add(fn);
+  }
+
+  removeOnMessage(fn) {
+    this.messageListeners.delete(fn);
+  }
+
+  // --- 内部广播 ---
+
+  _broadcast(taskId, msg) {
+    // 日志类消息写入缓冲
+    if (msg.type === "log") {
+      if (!this.logBuffers.has(taskId)) {
+        this.logBuffers.set(taskId, []);
+      }
+      const buffer = this.logBuffers.get(taskId);
+      buffer.push(msg);
+      if (buffer.length > this.MAX_BUFFER_SIZE) {
+        buffer.shift();
+      }
+    }
+
+    // 广播给所有监听者
+    for (const fn of this.messageListeners) {
+      try {
+        fn(taskId, msg);
+      } catch (e) {
+        // 忽略单个监听者的异常，不影响其他订阅者
+      }
+    }
   }
 
   create(taskId, worker, timeoutMs, filePath, params) {
     const timer = setTimeout(() => {
-      this.terminate(taskId, new Error(`[TaskManager] 任务超时(${timeoutMs}ms)`));
+      this.terminate(
+        taskId,
+        new Error(`[TaskManager] 任务超时(${timeoutMs}ms)`),
+      );
     }, timeoutMs);
 
     this.tasks.set(taskId, { worker, timer, filePath, params });
   }
 
-  get(taskId) {
-    return this.tasks.get(taskId) || null;
-  }
-
-  async terminate(taskId, reason) {
-    const task = this.tasks.get(taskId);
-    if (!task) return;
-
-    try {
-      task.worker.terminate();
-    } catch (e) {
-      // worker 可能已经退出
-    }
-    clearTimeout(task.timer);
-    this.tasks.delete(taskId);
-
-    if (reason) {
-      // 如果有对应的 WebSocket 连接，推送错误消息
-      this._broadcastError(taskId, reason.message);
-    }
-  }
-
-  complete(taskId, result) {
-    const task = this.tasks.get(taskId);
-    if (!task) return;
-    clearTimeout(task.timer);
-    this.tasks.delete(taskId);
-    this._broadcastMessage(taskId, { type: 'finish', returnVal: result });
-  }
-
-  error(taskId, error) {
-    const task = this.tasks.get(taskId);
-    if (!task) return;
-    clearTimeout(task.timer);
-    this.tasks.delete(taskId);
-    this._broadcastMessage(taskId, {
-      type: 'error',
-      error: { message: error.message, stack: error.stack }
-    });
-  }
-
-  // 预留：向特定 taskId 的 WebSocket 连接推送消息
-  _broadcastMessage(taskId, msg) {
-    // 由 WebSocket handler 注册回调来接收
-    if (TaskManager._onMessage) {
-      TaskManager._onMessage(taskId, msg);
-    }
-  }
-
   _broadcastError(taskId, message) {
-    this._broadcastMessage(taskId, { type: 'error', error: { message } });
+    this._broadcastMessage(taskId, { type: "error", error: { message } });
   }
 
   static setOnMessage(fn) {
@@ -77,6 +71,79 @@ class TaskManager {
       runningSince: t.timer._idleStart ? new Date().toISOString() : null,
     }));
   }
+
+  // --- 获取缓冲日志 ---
+
+  getBufferedLogs(taskId) {
+    return this.logBuffers.get(taskId) || [];
+  }
+
+  // --- 任务管理 ---
+
+  set(taskId, task) {
+    this.tasks.set(taskId, task);
+  }
+
+  get(taskId) {
+    return this.tasks.get(taskId);
+  }
+
+  delete(taskId) {
+    this.tasks.delete(taskId);
+    this.logBuffers.delete(taskId);
+  }
+
+  list() {
+    return Array.from(this.tasks.entries()).map(([id, task]) => ({
+      taskId: id,
+      ...task,
+    }));
+  }
+
+  // --- 任务状态变更（广播） ---
+
+  complete(taskId, result) {
+    const task = this.tasks.get(taskId);
+    if (task) {
+      task.status = "completed";
+      task.result = result;
+    }
+    this._broadcast(taskId, { type: "completed", taskId, result });
+    // 任务结束后清理缓冲
+    this.logBuffers.delete(taskId);
+  }
+
+  error(taskId, error) {
+    const task = this.tasks.get(taskId);
+    if (task) {
+      task.status = "error";
+      task.error = error.message;
+    }
+    this._broadcast(taskId, { type: "error", taskId, error: error.message });
+    this.logBuffers.delete(taskId);
+  }
+
+  log(taskId, message) {
+    this._broadcast(taskId, { type: "log", taskId, message });
+  }
+
+  terminate(taskId, error) {
+    const task = this.tasks.get(taskId);
+    if (task) {
+      task.status = "terminated";
+      if (task.worker) {
+        task.worker.kill();
+      }
+    }
+    this._broadcast(taskId, {
+      type: "terminated",
+      taskId,
+      reason: error.message,
+    });
+    this.logBuffers.delete(taskId);
+  }
 }
 
-export default new TaskManager();
+// 单例导出
+const taskManager = new TaskManager();
+export default taskManager;
