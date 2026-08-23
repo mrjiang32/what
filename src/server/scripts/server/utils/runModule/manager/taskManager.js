@@ -1,4 +1,5 @@
 // src/server/runModule/manager/taskManager.js
+import { Worker } from "worker_threads";
 
 class TaskManager {
   constructor() {
@@ -45,6 +46,14 @@ class TaskManager {
     }
   }
 
+  /**
+   *
+   * @param {*} taskId
+   * @param {Worker} worker
+   * @param {*} timeoutMs
+   * @param {*} filePath
+   * @param {*} params
+   */
   create(taskId, worker, timeoutMs, filePath, params) {
     const timer = setTimeout(() => {
       this.terminate(
@@ -127,12 +136,15 @@ class TaskManager {
     this._broadcast(taskId, { type: "log", taskId, message });
   }
 
-  terminate(taskId, error) {
+  async terminate(taskId, error) {
     const task = this.tasks.get(taskId);
     if (task) {
       task.status = "terminated";
       if (task.worker) {
-        task.worker.kill();
+        task.worker
+          .terminate()
+          .then((n) => console.log(`Task exited with ${n}`))
+          .catch((e) => console.error(e));
       }
     }
     this._broadcast(taskId, {
