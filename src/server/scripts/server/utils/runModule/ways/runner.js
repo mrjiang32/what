@@ -42,6 +42,13 @@ const AsyncFunction = (async () => {}).constructor;
         // so the source can be executed inside an AsyncFunction (where top-level return is allowed).
         let transformed = __source;
 
+        // Create a file URL for this module to use with a shimmed import.meta
+        const __fileUrl = `file://${path.resolve(__wd.filePath)}`;
+
+        // Replace import.meta occurrences with a shim variable before execution
+        // We'll inject a __import_meta constant containing the file URL.
+        transformed = transformed.replace(/import\.meta\b/g, '__import_meta');
+
         // handle `import defaultExport, { named } from 'mod';` by capturing default and named imports
         transformed = transformed.replace(/^\s*import\s+([A-Za-z_$][\w$]*)\s*,\s*(\{[^}]+\})\s+from\s+['"]([^'"]+)['"];?/gm, (m, def, named, mod) => {
           return `const __m = await import('${mod}');\nconst ${def} = __m.default;\nconst ${named} = __m;`;
@@ -75,6 +82,9 @@ const AsyncFunction = (async () => {}).constructor;
 
         // remove export list statements like: export { a, b as c };
         transformed = transformed.replace(/^\s*export\s*\{[^}]*\};?/gm, '');
+
+        // Prepend an import.meta shim so code that references import.meta.url still works
+        transformed = `const __import_meta = { url: '${__fileUrl}' };\n` + transformed;
 
         const AsyncFunction = (async () => {}).constructor;
         const __exec = new AsyncFunction("params", "console", `\n        "use strict";\n        ${transformed}\n      `);
