@@ -20,8 +20,9 @@ export default async () => {
         resolve(httpServer);
       },
     );
-    global.server.taskWsServer = new TaskWebSocket(global.server.httpServer)
+    // use the local httpServer instance returned by app.listen so ws gets a real server
+    global.server.taskWsServer = new TaskWebSocket(httpServer);
+    logger.info("已挂载ws服务器");
     httpServer.on("error", reject);
   });
-
 };
