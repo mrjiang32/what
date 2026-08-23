@@ -67,6 +67,9 @@ const AsyncFunction = (async () => {}).constructor;
         // 这样它就能正确地从目标脚本旁边的 node_modules 中加载依赖了
         const __requireFromTarget = createRequire(path.resolve(__wd.filePath));
 
+        // prefer ESM-style resolution if the original source used `import` (not just `export`)
+        const __preferESM = /^\s*import\b/m.test(__source);
+
         // helper dynamic importer used inside transformed code: resolves bare specifiers via require from target,
         // and uses ESM dynamic import for relative/absolute specifiers. Returns a namespace-like object so
         // `.default` access works for CommonJS modules.
@@ -85,16 +88,43 @@ const AsyncFunction = (async () => {}).constructor;
         // 如果不是以 . / 或盘符开头，就认为是 npm 包（如 'cheerio', 'lodash'）
         const isBareModule = (mod) => !/^([.\\/]|[A-Za-z]:)/.test(mod);
 
+        // Improved dynamic import shim that prefers ESM resolution when the original source used `import`.
+        const __dynamicImportShim2 = `const __dynamicImport = async (s) => {
+  if (__preferESM) {
+    try {
+      if (__requireFromTarget && __requireFromTarget.resolve) {
+        const resolved = __requireFromTarget.resolve(s);
+        return await import(new URL(resolved, __fileUrl));
+      }
+    } catch (e) {
+      const m = __requireFromTarget(s);
+      if (m && m.__esModule) return m;
+      const ns = { default: m };
+      if (m && typeof m === 'object') Object.assign(ns, m);
+      return ns;
+    }
+    const m = __requireFromTarget(s);
+    if (m && m.__esModule) return m;
+    const ns = { default: m };
+    if (m && typeof m === 'object') Object.assign(ns, m);
+    return ns;
+  }
+  if (!/^([.\\/]|[A-Za-z]:\\\\)/.test(s)) {
+    const m = __requireFromTarget(s);
+    if (m && m.__esModule) return m;
+    const ns = { default: m };
+    if (m && typeof m === 'object') Object.assign(ns, m);
+    return ns;
+  }
+  return await import(new URL(s, __fileUrl));
+};\n`;
+
         // handle `import defaultExport, { named } from 'mod';`
         transformed = transformed.replace(
           /^\s*import\s+([A-Za-z_$][\w$]*)\s*,\s*(\{[^}]+\})\s+from\s+['"]([^'"]+)['"];?/gm,
           (m, def, named, mod) => {
-            if (isBareModule(mod)) {
-              // 裸模块：使用 require，并手动解构
-              return `const __m = __requireFromTarget('${mod}');\nconst ${def} = __m.default || __m;\nconst ${named} = __m;`;
-            }
-            // 相对/绝对路径：走 ESM
-            return `const __m = await import('${mod}');\nconst ${def} = __m.default;\nconst ${named} = __m;`;
+            // Use the dynamic importer to handle both ESM and CJS packages relative to the target package
+            return `const __m = await __dynamicImport('${mod}');\nconst ${def} = __m.default;\nconst ${named} = __m;`;
           },
         );
 
@@ -102,22 +132,15 @@ const AsyncFunction = (async () => {}).constructor;
         transformed = transformed.replace(
           /^\s*import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"];?/gm,
           (m, def, mod) => {
-            if (isBareModule(mod)) {
-              return `const ${def} = __requireFromTarget('${mod}');`;
-            }
-            return `const ${def} = (await import('${mod}')).default;`;
+            return `const ${def} = (await __dynamicImport('${mod}')).default;`;
           },
         );
 
         // handle `import * as ns from 'mod';`
         transformed = transformed.replace(
-          /^\s*import\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"];?/gm,
+          /^\s*import\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"']+)['"];?/gm,
           (m, ns, mod) => {
-            if (isBareModule(mod)) {
-              // 将 require 的结果包装成类似 ESM 的命名空间对象
-              return `const ${ns} = (() => { const m = __requireFromTarget('${mod}'); const ns = { default: m }; if (m && typeof m === 'object') Object.assign(ns, m); return ns; })();`;
-            }
-            return `const ${ns} = await import('${mod}');`;
+            return `const ${ns} = await __dynamicImport('${mod}');`;
           },
         );
 
@@ -127,9 +150,9 @@ const AsyncFunction = (async () => {}).constructor;
           (m, named, mod) => {
             if (isBareModule(mod)) {
               // 注意：这里直接解构 require 出来的对象
-              return `const ${named} = __requireFromTarget('${mod}');`;
+              return `const ${named} = (await __dynamicImport('${mod}'));`;
             }
-            return `const ${named} = (await import('${mod}'));`;
+            return `const ${named} = (await __dynamicImport('${mod}'));`;
           },
         );
 
@@ -138,7 +161,7 @@ const AsyncFunction = (async () => {}).constructor;
           /^\s*import\s+['"]([^'"]+)['"];?/gm,
           (m, mod) => {
             if (isBareModule(mod)) {
-              return `__requireFromTarget('${mod}');`;
+              return `await __dynamicImport('${mod}');`;
             }
             return `await import('${mod}');`;
           },
@@ -167,9 +190,8 @@ const AsyncFunction = (async () => {}).constructor;
         // remove export list statements like: export { a, b as c };
         transformed = transformed.replace(/^\s*export\s*\{[^}]*\};?/gm, "");
 
-        // Prepend an import.meta shim so code that references import.meta.url still works
-        transformed =
-          `const __import_meta = { url: '${__fileUrl}' };\n` + transformed;
+        // Prepend dynamic-import shim and an import.meta shim so code that references import.meta.url or uses imports works
+        transformed = __dynamicImportShim2 + `const __import_meta = { url: '${__fileUrl}' };\n` + transformed;
 
         const AsyncFunction = (async () => {}).constructor;
         const __exec = new AsyncFunction(
@@ -177,14 +199,15 @@ const AsyncFunction = (async () => {}).constructor;
           "console",
           "__requireFromTarget",
           "__fileUrl",
-          `\n        "use strict";\n        ${transformed}\n      `,
-        );
+          "__preferESM",
+          `\n        "use strict";\n        ${transformed}\n      `,        );
 
         const result = await __exec(
           params,
           console,
           __requireFromTarget,
           __fileUrl,
+          __preferESM,
         );
         __pp.postMessage({ type: "finish", returnVal: result });
       } else {
