@@ -1,6 +1,7 @@
 import { parentPort as __pp, workerData as __wd } from "worker_threads";
 import __fs from "fs";
 import path from "path";
+import { createRequire } from 'module';
 
 const __originalConsole = { ...console };
 
@@ -49,6 +50,28 @@ const AsyncFunction = (async () => {}).constructor;
         // We'll inject a __import_meta constant containing the file URL.
         transformed = transformed.replace(/import\.meta\b/g, '__import_meta');
 
+        // create a require resolver rooted at the target file so bare specifiers resolve from the target package
+        const __requireFromTarget = createRequire(path.resolve(__wd.filePath));
+
+        // helper dynamic importer used inside transformed code: resolves bare specifiers via require from target,
+        // and uses ESM dynamic import for relative/absolute specifiers. Returns a namespace-like object so
+        // `.default` access works for CommonJS modules.
+        const __dynamicImportShim = `const __dynamicImport = async (s) => {
+  if (!/^([.\\/]|[A-Za-z]:\\\\)/.test(s)) {
+    const m = __requireFromTarget(s);
+    if (m && m.__esModule) return m;
+    const ns = { default: m };
+    if (m && typeof m === 'object') Object.assign(ns, m);
+    return ns;
+  }
+  return await import(new URL(s, __fileUrl));
+};\n`;
+
+        // Insert the dynamic importer shim at the top of transformed code and rewrite `await import(` calls to use it
+        transformed = __dynamicImportShim + transformed;
+        // only rewrite dynamic imports whose first argument is a string literal; preserve imports that already use new URL(...) or expressions
+        transformed = transformed.replace(/\bawait\s+import\s*\(\s*(['"]/g, 'await __dynamicImport($1');
+
         // handle `import defaultExport, { named } from 'mod';` by capturing default and named imports
         transformed = transformed.replace(/^\s*import\s+([A-Za-z_$][\w$]*)\s*,\s*(\{[^}]+\})\s+from\s+['"]([^'"]+)['"];?/gm, (m, def, named, mod) => {
           return `const __m = await import('${mod}');\nconst ${def} = __m.default;\nconst ${named} = __m;`;
@@ -87,9 +110,9 @@ const AsyncFunction = (async () => {}).constructor;
         transformed = `const __import_meta = { url: '${__fileUrl}' };\n` + transformed;
 
         const AsyncFunction = (async () => {}).constructor;
-        const __exec = new AsyncFunction("params", "console", `\n        "use strict";\n        ${transformed}\n      `);
+        const __exec = new AsyncFunction("params", "console", "__requireFromTarget", "__fileUrl", `\n        "use strict";\n        ${transformed}\n      `);
 
-        const result = await __exec(params, console);
+        const result = await __exec(params, console, __requireFromTarget, __fileUrl);
         __pp.postMessage({ type: "finish", returnVal: result });
       } else {
         // Load the target file through Node's ESM loader so top-level imports/exports are supported
