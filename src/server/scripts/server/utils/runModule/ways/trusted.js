@@ -9,7 +9,7 @@ const workerPath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "./runner.js",
 );
-const logger = global.logger.getByContext("runner");
+const logger = global.logger.getByContext("Runner");
 
 /**
  * 启动一个异步任务，返回 taskId
@@ -31,7 +31,7 @@ export default async function runTrusted(filePath, params, timeoutMs, suiteName)
     if (msg?.type === "__LOG__") {
       const { level, args } = msg;
       if (typeof logger[level] === "function") {
-        logger;
+        logger[level](args);
       }
       // 同时通过 TaskManager 推送给 WS 客户端
       TaskManager._broadcastMessage &&

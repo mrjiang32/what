@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import global from "../../../global.js";
+import TaskWebSocket from "../utils/ws/taskWebSocket.js";
 
 export default async () => {
   let logger = global.logger.getByContext("Listen");
@@ -19,6 +20,8 @@ export default async () => {
         resolve(httpServer);
       },
     );
+    global.server.taskWsServer = new TaskWebSocket(global.server.httpServer)
     httpServer.on("error", reject);
   });
+
 };
