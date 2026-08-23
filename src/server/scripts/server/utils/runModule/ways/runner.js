@@ -35,24 +35,72 @@ const AsyncFunction = (async () => {}).constructor;
     const isESM = /^\s*(import|export)\b/m.test(__source);
 
     if (isESM) {
-      // Load the target file through Node's ESM loader so top-level imports/exports are supported
-      const moduleUrl = `file://${path.resolve(__wd.filePath)}`;
-      const mod = await import(moduleUrl);
-      let result;
-      if (typeof mod === "function") {
-        result = await mod(params, console);
-      } else if (typeof mod.default === "function") {
-        result = await mod.default(params, console);
-      } else if (typeof mod.run === "function") {
-        result = await mod.run(params, console);
-      } else if (typeof mod.execute === "function") {
-        result = await mod.execute(params, console);
-      } else {
-        // no callable export — return the module namespace
-        result = mod;
-      }
+      const hasTopLevelReturn = /^\s*return\b/m.test(__source);
 
-      __pp.postMessage({ type: "finish", returnVal: result });
+      if (hasTopLevelReturn) {
+        // Transform ESM-style static imports/exports into dynamic imports and normal declarations
+        // so the source can be executed inside an AsyncFunction (where top-level return is allowed).
+        let transformed = __source;
+
+        // handle `import defaultExport, { named } from 'mod';` by capturing default and named imports
+        transformed = transformed.replace(/^\s*import\s+([A-Za-z_$][\w$]*)\s*,\s*(\{[^}]+\})\s+from\s+['"]([^'"]+)['"];?/gm, (m, def, named, mod) => {
+          return `const __m = await import('${mod}');\nconst ${def} = __m.default;\nconst ${named} = __m;`;
+        });
+
+        // handle `import defaultExport from 'mod';`
+        transformed = transformed.replace(/^\s*import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"];?/gm, (m, def, mod) => {
+          return `const ${def} = (await import('${mod}')).default;`;
+        });
+
+        // handle `import * as ns from 'mod';`
+        transformed = transformed.replace(/^\s*import\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"];?/gm, (m, ns, mod) => {
+          return `const ${ns} = await import('${mod}');`;
+        });
+
+        // handle `import {a, b as c} from 'mod';`
+        transformed = transformed.replace(/^\s*import\s+(\{[^}]+\})\s+from\s+['"]([^'"]+)['"];?/gm, (m, named, mod) => {
+          return `const ${named} = (await import('${mod}'));`;
+        });
+
+        // side-effect imports: `import 'mod';`
+        transformed = transformed.replace(/^\s*import\s+['"]([^'"]+)['"];?/gm, (m, mod) => {
+          return `await import('${mod}');`;
+        });
+
+        // export default -> return
+        transformed = transformed.replace(/^\s*export\s+default\s+/gm, 'return ');
+
+        // export named declarations: remove `export ` prefix
+        transformed = transformed.replace(/^\s*export\s+(?=(function|class|const|let|var)\b)/gm, '');
+
+        // remove export list statements like: export { a, b as c };
+        transformed = transformed.replace(/^\s*export\s*\{[^}]*\};?/gm, '');
+
+        const AsyncFunction = (async () => {}).constructor;
+        const __exec = new AsyncFunction("params", "console", `\n        "use strict";\n        ${transformed}\n      `);
+
+        const result = await __exec(params, console);
+        __pp.postMessage({ type: "finish", returnVal: result });
+      } else {
+        // Load the target file through Node's ESM loader so top-level imports/exports are supported
+        const moduleUrl = `file://${path.resolve(__wd.filePath)}`;
+        const mod = await import(moduleUrl);
+        let result;
+        if (typeof mod === "function") {
+          result = await mod(params, console);
+        } else if (typeof mod.default === "function") {
+          result = await mod.default(params, console);
+        } else if (typeof mod.run === "function") {
+          result = await mod.run(params, console);
+        } else if (typeof mod.execute === "function") {
+          result = await mod.execute(params, console);
+        } else {
+          // no callable export — return the module namespace
+          result = mod;
+        }
+
+        __pp.postMessage({ type: "finish", returnVal: result });
+      }
     } else {
       const AsyncFunction = (async () => {}).constructor;
 
