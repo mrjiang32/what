@@ -98,3 +98,6 @@ Icon?
 
 # tokenMap
 src/server/.*
+
+# wsconn
+src/server/scripts/server/utils/ws/wsConn.js
