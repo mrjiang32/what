@@ -57,18 +57,12 @@ export const resolvers = {
     },
     execSuite: async (_p, { suiteName, params }) => {
       if (!H.isValidSuiteName(suiteName)) throw new Error("套件名称非法");
-
-      try {
-        const execResult = await H.runSuiteModule(
-          H.dirSource,
-          suiteName,
-          params ?? {},
-        );
-        return { result: execResult, error: null };
-      } catch (err) {
-        setTimeout(() => global.logger.error(err), 50);
-        return { result: null, error: `${err.name} ${err.message} ${err.stack}` };
-      }
+      const taskId = await H.runSuiteModule(
+        H.dirSource,
+        suiteName,
+        params ?? {},
+      );
+      return { taskId };
     },
     deleteSuite: async (_p, { suiteName }) => {
       if (!H.isValidSuiteName(suiteName)) throw new Error("套件名称非法");
