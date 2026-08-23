@@ -1,5 +1,6 @@
 import { parentPort as __pp, workerData as __wd } from "worker_threads";
 import __fs from "fs";
+import path from "path";
 
 const __originalConsole = { ...console };
 
@@ -30,19 +31,40 @@ const AsyncFunction = (async () => {}).constructor;
     const __source = await __fs.promises.readFile(__wd.filePath, "utf-8");
     const params = __wd.params;
 
-    const AsyncFunction = (async () => {}).constructor;
+    // Detect if the source uses ESM top-level import/export
+    const isESM = /^\s*(import|export)\b/m.test(__source);
 
-    // ✅ 核心修复：将重定向后的 console 作为参数注入到动态代码中
-    // 注意：这里传入了 "params" 和 "console" 两个形参
-    const __exec = new AsyncFunction("params", "console", `
-      "use strict";
-      ${__source}
-    `);
+    if (isESM) {
+      // Load the target file through Node's ESM loader so top-level imports/exports are supported
+      const moduleUrl = `file://${path.resolve(__wd.filePath)}`;
+      const mod = await import(moduleUrl);
+      let result;
+      if (typeof mod === "function") {
+        result = await mod(params, console);
+      } else if (typeof mod.default === "function") {
+        result = await mod.default(params, console);
+      } else if (typeof mod.run === "function") {
+        result = await mod.run(params, console);
+      } else if (typeof mod.execute === "function") {
+        result = await mod.execute(params, console);
+      } else {
+        // no callable export — return the module namespace
+        result = mod;
+      }
 
-    // ✅ 执行时，将真实的 params 和重定向后的 console 传入
-    const result = await __exec(params, console);
-    
-    __pp.postMessage({ type: "finish", returnVal: result });
+      __pp.postMessage({ type: "finish", returnVal: result });
+    } else {
+      const AsyncFunction = (async () => {}).constructor;
+
+      // Inject params and redirected console into dynamic function
+      const __exec = new AsyncFunction("params", "console", `
+        "use strict";
+        ${__source}
+      `);
+
+      const result = await __exec(params, console);
+      __pp.postMessage({ type: "finish", returnVal: result });
+    }
   } catch (err) {
     console.error("Worker execution failed:", err);
     __pp.postMessage({ type: "error", error: { name: err.name, message: err.message, stack: err.stack } });
