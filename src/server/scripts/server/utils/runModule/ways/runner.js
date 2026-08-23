@@ -50,8 +50,27 @@ const AsyncFunction = (async () => {}).constructor;
         // We'll inject a __import_meta constant containing the file URL.
         transformed = transformed.replace(/import\.meta\b/g, '__import_meta');
 
-        // create a require resolver rooted at the target file so bare specifiers resolve from the target package
-        const __requireFromTarget = createRequire(path.resolve(__wd.filePath));
+        // create a require resolver rooted at the nearest package.json ancestor of the target file
+        // This allows resolving dependencies installed inside a script's own package directory
+        let __requireFromTarget;
+        try {
+          let dir = path.dirname(path.resolve(__wd.filePath));
+          let pkgRoot = null;
+          while (true) {
+            const candidate = path.join(dir, 'package.json');
+            if (__fs.existsSync(candidate)) { pkgRoot = dir; break; }
+            const parent = path.dirname(dir);
+            if (parent === dir) break;
+            dir = parent;
+          }
+          if (pkgRoot) {
+            __requireFromTarget = createRequire(path.join(pkgRoot, 'package.json'));
+          } else {
+            __requireFromTarget = createRequire(path.resolve(__wd.filePath));
+          }
+        } catch (e) {
+          __requireFromTarget = createRequire(path.resolve(__wd.filePath));
+        }
 
         // helper dynamic importer used inside transformed code: resolves bare specifiers via require from target,
         // and uses ESM dynamic import for relative/absolute specifiers. Returns a namespace-like object so
@@ -70,7 +89,7 @@ const AsyncFunction = (async () => {}).constructor;
         // Insert the dynamic importer shim at the top of transformed code and rewrite `await import(` calls to use it
         transformed = __dynamicImportShim + transformed;
         // only rewrite dynamic imports whose first argument is a string literal; preserve imports that already use new URL(...) or expressions
-        transformed = transformed.replace(/\bawait\s+import\s*\(\s*(['"]/g, 'await __dynamicImport($1');
+        transformed = transformed.replace(new RegExp("\\bawait\\s+import\\s*\\(\\s*(['\"])", "g"), 'await __dynamicImport($1');
 
         // handle `import defaultExport, { named } from 'mod';` by capturing default and named imports
         transformed = transformed.replace(/^\s*import\s+([A-Za-z_$][\w$]*)\s*,\s*(\{[^}]+\})\s+from\s+['"]([^'"]+)['"];?/gm, (m, def, named, mod) => {
