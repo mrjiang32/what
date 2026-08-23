@@ -1,13 +1,26 @@
 import { parentPort as __pp, workerData as __wd } from "worker_threads";
 import __fs from "fs";
 import path from "path";
-import { createRequire } from 'module';
+import { createRequire } from "module";
+
+// [核心修改] 动态将目标脚本所在的 node_modules 注入到 NODE_PATH 中
+const targetDir = path.dirname(path.resolve(__wd.filePath));
+const targetNodeModules = path.join(targetDir, "node_modules");
+if (__fs.existsSync(targetNodeModules)) {
+  process.env.NODE_PATH = process.env.NODE_PATH
+    ? `${process.env.NODE_PATH}:${targetNodeModules}`
+    : targetNodeModules;
+
+  // ✅ 使用 ESM 的方式引入 module 模块
+  const moduleModule = await import("module");
+  moduleModule.default.Module._initPaths();
+}
 
 const __originalConsole = { ...console };
 
 const __safePostLog = (level, args) => {
   try {
-    const safeArgs = args.map(arg => {
+    const safeArgs = args.map((arg) => {
       if (arg instanceof Error) {
         return { name: arg.name, message: arg.message, stack: arg.stack };
       }
@@ -48,29 +61,11 @@ const AsyncFunction = (async () => {}).constructor;
 
         // Replace import.meta occurrences with a shim variable before execution
         // We'll inject a __import_meta constant containing the file URL.
-        transformed = transformed.replace(/import\.meta\b/g, '__import_meta');
+        transformed = transformed.replace(/import\.meta\b/g, "__import_meta");
 
-        // create a require resolver rooted at the nearest package.json ancestor of the target file
-        // This allows resolving dependencies installed inside a script's own package directory
-        let __requireFromTarget;
-        try {
-          let dir = path.dirname(path.resolve(__wd.filePath));
-          let pkgRoot = null;
-          while (true) {
-            const candidate = path.join(dir, 'package.json');
-            if (__fs.existsSync(candidate)) { pkgRoot = dir; break; }
-            const parent = path.dirname(dir);
-            if (parent === dir) break;
-            dir = parent;
-          }
-          if (pkgRoot) {
-            __requireFromTarget = createRequire(path.join(pkgRoot, 'package.json'));
-          } else {
-            __requireFromTarget = createRequire(path.resolve(__wd.filePath));
-          }
-        } catch (e) {
-          __requireFromTarget = createRequire(path.resolve(__wd.filePath));
-        }
+        // [核心修改] 创建一个以目标脚本所在目录为根的 require 函数
+        // 这样它就能正确地从目标脚本旁边的 node_modules 中加载依赖了
+        const __requireFromTarget = createRequire(path.resolve(__wd.filePath));
 
         // helper dynamic importer used inside transformed code: resolves bare specifiers via require from target,
         // and uses ESM dynamic import for relative/absolute specifiers. Returns a namespace-like object so
@@ -86,52 +81,111 @@ const AsyncFunction = (async () => {}).constructor;
   return await import(new URL(s, __fileUrl));
 };\n`;
 
-        // Insert the dynamic importer shim at the top of transformed code and rewrite `await import(` calls to use it
-        transformed = __dynamicImportShim + transformed;
-        // only rewrite dynamic imports whose first argument is a string literal; preserve imports that already use new URL(...) or expressions
-        transformed = transformed.replace(new RegExp("\\bawait\\s+import\\s*\\(\\s*(['\"])", "g"), 'await __dynamicImport($1');
+        // [核心修改] 定义一个判断是否为裸模块的辅助函数
+        // 如果不是以 . / 或盘符开头，就认为是 npm 包（如 'cheerio', 'lodash'）
+        const isBareModule = (mod) => !/^([.\\/]|[A-Za-z]:)/.test(mod);
 
-        // handle `import defaultExport, { named } from 'mod';` by capturing default and named imports
-        transformed = transformed.replace(/^\s*import\s+([A-Za-z_$][\w$]*)\s*,\s*(\{[^}]+\})\s+from\s+['"]([^'"]+)['"];?/gm, (m, def, named, mod) => {
-          return `const __m = await import('${mod}');\nconst ${def} = __m.default;\nconst ${named} = __m;`;
-        });
+        // handle `import defaultExport, { named } from 'mod';`
+        transformed = transformed.replace(
+          /^\s*import\s+([A-Za-z_$][\w$]*)\s*,\s*(\{[^}]+\})\s+from\s+['"]([^'"]+)['"];?/gm,
+          (m, def, named, mod) => {
+            if (isBareModule(mod)) {
+              // 裸模块：使用 require，并手动解构
+              return `const __m = __requireFromTarget('${mod}');\nconst ${def} = __m.default || __m;\nconst ${named} = __m;`;
+            }
+            // 相对/绝对路径：走 ESM
+            return `const __m = await import('${mod}');\nconst ${def} = __m.default;\nconst ${named} = __m;`;
+          },
+        );
 
         // handle `import defaultExport from 'mod';`
-        transformed = transformed.replace(/^\s*import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"];?/gm, (m, def, mod) => {
-          return `const ${def} = (await import('${mod}')).default;`;
-        });
+        transformed = transformed.replace(
+          /^\s*import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"];?/gm,
+          (m, def, mod) => {
+            if (isBareModule(mod)) {
+              return `const ${def} = __requireFromTarget('${mod}');`;
+            }
+            return `const ${def} = (await import('${mod}')).default;`;
+          },
+        );
 
         // handle `import * as ns from 'mod';`
-        transformed = transformed.replace(/^\s*import\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"];?/gm, (m, ns, mod) => {
-          return `const ${ns} = await import('${mod}');`;
-        });
+        transformed = transformed.replace(
+          /^\s*import\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"];?/gm,
+          (m, ns, mod) => {
+            if (isBareModule(mod)) {
+              // 将 require 的结果包装成类似 ESM 的命名空间对象
+              return `const ${ns} = (() => { const m = __requireFromTarget('${mod}'); const ns = { default: m }; if (m && typeof m === 'object') Object.assign(ns, m); return ns; })();`;
+            }
+            return `const ${ns} = await import('${mod}');`;
+          },
+        );
 
         // handle `import {a, b as c} from 'mod';`
-        transformed = transformed.replace(/^\s*import\s+(\{[^}]+\})\s+from\s+['"]([^'"]+)['"];?/gm, (m, named, mod) => {
-          return `const ${named} = (await import('${mod}'));`;
-        });
+        transformed = transformed.replace(
+          /^\s*import\s+(\{[^}]+\})\s+from\s+['"]([^'"]+)['"];?/gm,
+          (m, named, mod) => {
+            if (isBareModule(mod)) {
+              // 注意：这里直接解构 require 出来的对象
+              return `const ${named} = __requireFromTarget('${mod}');`;
+            }
+            return `const ${named} = (await import('${mod}'));`;
+          },
+        );
 
         // side-effect imports: `import 'mod';`
-        transformed = transformed.replace(/^\s*import\s+['"]([^'"]+)['"];?/gm, (m, mod) => {
-          return `await import('${mod}');`;
-        });
+        transformed = transformed.replace(
+          /^\s*import\s+['"]([^'"]+)['"];?/gm,
+          (m, mod) => {
+            if (isBareModule(mod)) {
+              return `__requireFromTarget('${mod}');`;
+            }
+            return `await import('${mod}');`;
+          },
+        );
+
+        // side-effect imports: `import 'mod';`
+        transformed = transformed.replace(
+          /^\s*import\s+['"]([^'"]+)['"];?/gm,
+          (m, mod) => {
+            return `await import('${mod}');`;
+          },
+        );
 
         // export default -> return
-        transformed = transformed.replace(/^\s*export\s+default\s+/gm, 'return ');
+        transformed = transformed.replace(
+          /^\s*export\s+default\s+/gm,
+          "return ",
+        );
 
         // export named declarations: remove `export ` prefix
-        transformed = transformed.replace(/^\s*export\s+(?=(function|class|const|let|var)\b)/gm, '');
+        transformed = transformed.replace(
+          /^\s*export\s+(?=(function|class|const|let|var)\b)/gm,
+          "",
+        );
 
         // remove export list statements like: export { a, b as c };
-        transformed = transformed.replace(/^\s*export\s*\{[^}]*\};?/gm, '');
+        transformed = transformed.replace(/^\s*export\s*\{[^}]*\};?/gm, "");
 
         // Prepend an import.meta shim so code that references import.meta.url still works
-        transformed = `const __import_meta = { url: '${__fileUrl}' };\n` + transformed;
+        transformed =
+          `const __import_meta = { url: '${__fileUrl}' };\n` + transformed;
 
         const AsyncFunction = (async () => {}).constructor;
-        const __exec = new AsyncFunction("params", "console", "__requireFromTarget", "__fileUrl", `\n        "use strict";\n        ${transformed}\n      `);
+        const __exec = new AsyncFunction(
+          "params",
+          "console",
+          "__requireFromTarget",
+          "__fileUrl",
+          `\n        "use strict";\n        ${transformed}\n      `,
+        );
 
-        const result = await __exec(params, console, __requireFromTarget, __fileUrl);
+        const result = await __exec(
+          params,
+          console,
+          __requireFromTarget,
+          __fileUrl,
+        );
         __pp.postMessage({ type: "finish", returnVal: result });
       } else {
         // Load the target file through Node's ESM loader so top-level imports/exports are supported
@@ -157,16 +211,23 @@ const AsyncFunction = (async () => {}).constructor;
       const AsyncFunction = (async () => {}).constructor;
 
       // Inject params and redirected console into dynamic function
-      const __exec = new AsyncFunction("params", "console", `
+      const __exec = new AsyncFunction(
+        "params",
+        "console",
+        `
         "use strict";
         ${__source}
-      `);
+      `,
+      );
 
       const result = await __exec(params, console);
       __pp.postMessage({ type: "finish", returnVal: result });
     }
   } catch (err) {
     console.error("Worker execution failed:", err);
-    __pp.postMessage({ type: "error", error: { name: err.name, message: err.message, stack: err.stack } });
+    __pp.postMessage({
+      type: "error",
+      error: { name: err.name, message: err.message, stack: err.stack },
+    });
   }
 })();

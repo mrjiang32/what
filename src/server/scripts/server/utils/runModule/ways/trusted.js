@@ -1,12 +1,20 @@
 import { Worker } from "worker_threads";
-import global from "../../../../../global.js"
+import global from "../../../../../global.js";
 import path from "path";
-import { fileURLToPath } from "url"
+import { fileURLToPath } from "url";
 
-const workerPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "./runner.js");
+const workerPath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "./runner.js",
+);
 const logger = global.logger.getByContext("runner");
 
-export default async function runTrusted(filePath, params, timeoutMs, suiteName) {
+export default async function runTrusted(
+  filePath,
+  params,
+  timeoutMs,
+  suiteName,
+) {
   return new Promise((resolve, reject) => {
     const worker = new Worker(workerPath, {
       workerData: { filePath, params },
@@ -51,7 +59,11 @@ export default async function runTrusted(filePath, params, timeoutMs, suiteName)
 
     worker.on("error", (err) => {
       clearTimeout(timer);
-      reject(err);
+      reject(
+        new Error(
+          `[Trusted] Worker 发生未捕获异常 ${err.name} ${err.message} ${err.stack}`,
+        ),
+      );
     });
 
     worker.on("exit", (code) => {

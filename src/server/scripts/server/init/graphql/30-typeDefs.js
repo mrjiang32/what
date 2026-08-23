@@ -13,7 +13,7 @@ export const typeDefs = `
     settings: JSON
   }
 
-  type ExecResult { result: JSON }
+  type ExecResult { result: JSON, error: String }
 
   type Query {
     health: Health!

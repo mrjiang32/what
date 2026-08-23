@@ -1,6 +1,0 @@
-import global from "../../../global.js";
-
-// 已迁移为 GraphQL，请使用 /graphql 接口
-export default () => {
-  return [];
-};
