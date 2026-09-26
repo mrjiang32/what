@@ -3,15 +3,14 @@
 # ======================================
 node_modules/
 src/server/node_modules/
-src/client/node_modules/
 jspm_packages/
 
 # ======================================
 # Build output
 # ======================================
-src/client/dist/
 src/server/config/*.json
-src/server/scripts/custom/func
+!src/server/config/functions.json
+src/server/run/
 dist/
 build/
 out/
@@ -35,7 +34,6 @@ src/server/utils/*.json
 # ======================================
 package-lock.json
 src/server/package-lock.json
-src/client/package-lock.json
 yarn.lock
 pnpm-lock.yaml
 

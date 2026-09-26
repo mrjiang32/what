@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "functions": [
+    {
+      "name": "echo",
+      "description": "返回传入的 JSON 参数",
+      "module": "echo.mjs",
+      "export": "default",
+      "timeoutMs": 5000,
+      "adminOnly": true
+    }
+  ]
+}

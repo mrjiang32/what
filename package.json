@@ -4,11 +4,8 @@
     "server:start": "cd ./src/server && npm run start",
     "server:stop": "cd ./src/server && npm run stop",
     "server:install": "cd ./src/server && npm install",
-    "clean": "rimraf node_modules package-lock.json",
-    "clean:all": "rimraf node_modules package-lock.json src/server/node_modules src/server/package-lock.json",
+    "clean": "node -e \"for (const p of ['node_modules', 'package-lock.json']) require('node:fs').rmSync(p, { recursive: true, force: true })\"",
+    "clean:all": "node -e \"for (const p of ['node_modules', 'package-lock.json', 'src/server/node_modules', 'src/server/package-lock.json']) require('node:fs').rmSync(p, { recursive: true, force: true })\"",
     "reinstall": "npm run clean:all && npm run server:install"
-  },
-  "dependencies": {
-    "log4js": "^6.9.1"
   }
 }
