@@ -1,6 +1,6 @@
 "use strict";
 
-const { GraphQLScalarType, Kind } = require("graphql");
+import { GraphQLScalarType, Kind } from "graphql";
 
 function parseJsonLiteral(node) {
   if (node.kind === Kind.STRING || node.kind === Kind.BOOLEAN) return node.value;
@@ -19,7 +19,7 @@ const JSONScalar = new GraphQLScalarType({
   parseLiteral: parseJsonLiteral,
 });
 
-const typeDefs = `
+export const typeDefs = `
   scalar JSON
 
   type Health { running: Boolean!, uptime: Float! }
@@ -40,7 +40,7 @@ const typeDefs = `
   }
 `;
 
-const resolvers = {
+export const resolvers = {
   JSON: JSONScalar,
   Query: {
     health: (_parent, _args, { ctx }) => ({
@@ -66,4 +66,4 @@ const resolvers = {
   },
 };
 
-module.exports = { resolvers, typeDefs };
+export default { resolvers, typeDefs };

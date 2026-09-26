@@ -1,7 +1,7 @@
 "use strict";
 
-const { Service } = require("egg");
-const jwt = require("jsonwebtoken");
+import { Service } from "egg";
+import jwt from "jsonwebtoken";
 
 class AuthService extends Service {
   login(username, password) {
@@ -31,4 +31,4 @@ class AuthService extends Service {
   }
 }
 
-module.exports = AuthService;
+export default AuthService;

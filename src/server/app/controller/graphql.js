@@ -1,6 +1,6 @@
 "use strict";
 
-const { Controller } = require("egg");
+import { Controller } from "egg";
 
 class GraphqlController extends Controller {
   async index() {
@@ -8,4 +8,4 @@ class GraphqlController extends Controller {
   }
 }
 
-module.exports = GraphqlController;
+export default GraphqlController;

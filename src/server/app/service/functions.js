@@ -1,9 +1,9 @@
 "use strict";
 
-const { Service } = require("egg");
-const fs = require("node:fs/promises");
-const path = require("node:path");
-const { Worker } = require("node:worker_threads");
+import { Service } from "egg";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { Worker } from "node:worker_threads";
 
 class FunctionsService extends Service {
   async load() {
@@ -95,4 +95,4 @@ class FunctionsService extends Service {
   }
 }
 
-module.exports = FunctionsService;
+export default FunctionsService;

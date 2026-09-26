@@ -1,6 +1,10 @@
 "use strict";
 
-module.exports = app => {
+import { ApolloServer } from "@apollo/server";
+import { koaMiddleware } from "./app/lib/apollo-koa.js";
+import { resolvers, typeDefs } from "./app/graphql/index.js";
+
+export default app => {
   app.startedAt = Date.now();
   app.beforeStart(async () => {
     const startupContext = app.createAnonymousContext();
@@ -8,9 +12,6 @@ module.exports = app => {
     await startupContext.service.config.load();
     await startupContext.service.functions.load();
 
-    const { ApolloServer } = await import("@apollo/server");
-    const { koaMiddleware } = require("./app/lib/apollo-koa");
-    const { resolvers, typeDefs } = require("./app/graphql");
     const apollo = new ApolloServer({ typeDefs, resolvers });
     await apollo.start();
 

@@ -1,9 +1,9 @@
 "use strict";
 
-const { Service } = require("egg");
-const crypto = require("node:crypto");
-const fs = require("node:fs/promises");
-const path = require("node:path");
+import { Service } from "egg";
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 const defaultConfig = {
   server: { port: 3000, host: "127.0.0.1" },
@@ -21,7 +21,8 @@ class ConfigService extends Service {
       if (error.code !== "ENOENT") throw error;
       if (createValue === undefined) throw error;
       await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, `${JSON.stringify(createValue, null, 2)}\n`);
+      await fs.writeFile(filePath, `${JSON.stringify(createValue, null, 2)}
+`);
       return createValue;
     }
   }
@@ -33,7 +34,7 @@ class ConfigService extends Service {
     const runtimeConfig = {
       ...defaultConfig,
       ...storedConfig,
-      server: { ...defaultConfig.server, ...storedConfig.server },
+      server: { ...defaultConfig.server, ...(storedConfig?.server || {}) },
     };
 
     let users;
@@ -52,7 +53,8 @@ class ConfigService extends Service {
         },
       };
       await fs.mkdir(path.dirname(usersPath), { recursive: true });
-      await fs.writeFile(usersPath, `${JSON.stringify(users, null, 2)}\n`);
+      await fs.writeFile(usersPath, `${JSON.stringify(users, null, 2)}
+`);
       this.app.logger.warn("首次启动管理员密码：%s", defaultPassword);
     }
 
@@ -73,8 +75,9 @@ class ConfigService extends Service {
   }
 
   async saveUsers() {
-    await fs.writeFile(this.app.usersPath, `${JSON.stringify(this.app.users, null, 2)}\n`);
+    await fs.writeFile(this.app.usersPath, `${JSON.stringify(this.app.users, null, 2)}
+`);
   }
 }
 
-module.exports = ConfigService;
+export default ConfigService;

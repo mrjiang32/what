@@ -1,9 +1,9 @@
 "use strict";
 
-const { Readable } = require("node:stream");
-const { HeaderMap } = require("@apollo/server");
+import { Readable } from "node:stream";
+import { HeaderMap } from "@apollo/server";
 
-function koaMiddleware(server, options = {}) {
+export function koaMiddleware(server, options = {}) {
   server.assertStarted("koaMiddleware()");
   const createContext = options.context || (async () => ({}));
   return async ctx => {
@@ -34,4 +34,4 @@ function koaMiddleware(server, options = {}) {
   };
 }
 
-module.exports = { koaMiddleware };
+export default { koaMiddleware };
