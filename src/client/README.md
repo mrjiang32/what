@@ -1,39 +1,5 @@
-# Vite & HeroUI Template
+# Vue 3 + TypeScript + Vite
 
-This is a template for creating applications using Vite and HeroUI (v3).
+This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
 
-[Try it on CodeSandbox](https://githubbox.com/heroui-inc/vite-template)
-
-## Technologies Used
-
-- [Vite](https://vitejs.dev/guide/)
-- [HeroUI v3](https://heroui.com)
-- [Tailwind CSS](https://tailwindcss.com)
-- [Tailwind Variants](https://tailwind-variants.org)
-- [TypeScript](https://www.typescriptlang.org)
-
-## How to Use
-
-To clone the project, run the following command:
-
-```bash
-git clone https://github.com/heroui-inc/vite-template.git
-```
-
-### Install dependencies
-
-You can use one of them `npm`, `yarn`, `pnpm`, `bun`, Example using `npm`:
-
-```bash
-npm install
-```
-
-### Run the development server
-
-```bash
-npm run dev
-```
-
-## License
-
-Licensed under the [MIT license](https://github.com/heroui-inc/vite-template/blob/main/LICENSE).
+Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
