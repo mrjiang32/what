@@ -101,3 +101,4 @@ class GraphqlController extends Controller {
 }
 
 export default GraphqlController;
+//添加更复杂的组管理机制，使用graphql编辑groups.json
