@@ -7,18 +7,24 @@
     "koa-bodyparser": "^4.4.1"
   },
   "devDependencies": {
+    "@apollo/sandbox": "^2.7.4",
     "egg-bin": "^6.13.0",
     "egg-scripts": "^3.1.0"
   },
   "type": "module",
   "scripts": {
-    "dev": "egg-scripts start --port 3000",
-    "start": "egg-scripts start --port 3000 --daemon",
+    "dev": "EGG_SERVER_ENV=local egg-scripts start --port 3000",
+    "prod": "EGG_SERVER_ENV=prod egg-scripts start --port 3000",
+    "start": "EGG_SERVER_ENV=prod egg-scripts start --port 3000 --daemon",
     "stop": "egg-scripts stop"
   },
   "author": "Andrew M. Pines",
   "license": "MIT",
   "description": "WebHook Astatine is a useful(useless) tool for you to manage WebHooks.",
   "name": "what",
-  "displayName": "WebHook Astatine"
+  "displayName": "WebHook Astatine",
+  "allowScripts": {
+    "@apollo/protobufjs@1.2.8": true,
+    "egg-bin@6.13.0": true
+  }
 }
