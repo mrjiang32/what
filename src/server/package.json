@@ -13,10 +13,10 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "EGG_SERVER_ENV=local egg-scripts start --port 3000",
-    "prod": "EGG_SERVER_ENV=prod egg-scripts start --port 3000",
-    "start": "EGG_SERVER_ENV=prod egg-scripts start --port 3000 --daemon",
-    "stop": "egg-scripts stop"
+    "dev": "EGG_LOG=none EGG_MASTER_LOGGER_LEVEL=ERROR EGG_SERVER_ENV=local egg-scripts start --port 3000 2>&1 | grep -v \"cfork:master\"",
+    "prod": "EGG_LOG=none EGG_MASTER_LOGGER_LEVEL=ERROR EGG_SERVER_ENV=prod egg-scripts start --port 3000",
+    "start": "EGG_LOG=none EGG_MASTER_LOGGER_LEVEL=ERROR EGG_SERVER_ENV=prod egg-scripts start --port 3000 --daemon",
+    "stop": "EGG_LOG=none egg-scripts stop"
   },
   "author": "Andrew M. Pines",
   "license": "MIT",

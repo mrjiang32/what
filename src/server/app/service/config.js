@@ -63,9 +63,18 @@ class ConfigService extends Service {
       await fs.mkdir(path.dirname(usersPath), { recursive: true });
       await fs.writeFile(usersPath, `${JSON.stringify(users, null, 2)}
 `);
-      const message = `默认管理员账号已生成：username=${defaultUsername} password=${defaultPassword}`;
-      console.warn(message);
-      this.app.logger.warn(message);
+
+      const banner = [
+        "",
+        "========================================================",
+        "DEFAULT ADMIN ACCOUNT GENERATED",
+        `username: ${defaultUsername}`,
+        `password: ${defaultPassword}`,
+        "========================================================",
+        "",
+      ].join("\n");
+
+      process.stderr.write(`${banner}\n`);
     }
 
     this.app.runtimeConfig = {
