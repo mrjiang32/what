@@ -7,6 +7,22 @@ export function koaMiddleware(server, options = {}) {
   server.assertStarted("koaMiddleware()");
   const createContext = options.context || (async () => ({}));
   return async ctx => {
+    const origin = ctx.get("origin");
+    if (origin) {
+      ctx.set("Access-Control-Allow-Origin", origin);
+      ctx.set("Vary", "Origin");
+    } else {
+      ctx.set("Access-Control-Allow-Origin", "*");
+    }
+    ctx.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    ctx.set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-CSRF-Token, X-Requested-With");
+    ctx.set("Access-Control-Allow-Credentials", "true");
+
+    if (ctx.method === "OPTIONS") {
+      ctx.status = 204;
+      return;
+    }
+
     const headers = new HeaderMap();
     for (const [name, value] of Object.entries(ctx.headers)) {
       if (value !== undefined) {

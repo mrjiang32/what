@@ -43,8 +43,8 @@ const SANDBOX_HTML = `<!DOCTYPE html>
         target: root,
         endpoint: "/graphql",
         embedding: "always",
-        handleRequest: ({ options, query, variables, operationName, extraHeaders }) => {
-          const headers = new Headers(extraHeaders || {});
+        handleRequest: (endpoint, options) => {
+          const headers = new Headers(options.headers || {});
           const authToken = localStorage.getItem("what-auth-token");
           const csrfToken = document.cookie
             .split("; ")
@@ -57,15 +57,16 @@ const SANDBOX_HTML = `<!DOCTYPE html>
             headers.set("x-csrf-token", csrfToken.split("=")[1]);
           }
 
-          return fetch(options.endpoint, {
-            method: "POST",
+          return fetch(endpoint, {
+            ...options,
             headers,
-            body: JSON.stringify({ query, variables, operationName }),
             credentials: "same-origin",
           });
         },
         initialState: {
           workspaceName: "What GraphQL",
+          includeCookies: true,
+         
           settings: {
             "request.credentials": "same-origin",
             "editor.theme": "dark",

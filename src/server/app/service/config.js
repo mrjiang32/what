@@ -38,27 +38,40 @@ class ConfigService extends Service {
     };
 
     let users;
+    let defaultAdmin = null;
     try {
       users = await this.readJson(usersPath);
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
+      users = {};
+    }
+
+    if (!users || Object.keys(users).length === 0) {
+      const defaultUsername = "admin";
+      const defaultPassword = crypto.randomBytes(12).toString("hex");
       const salt = crypto.randomBytes(16).toString("base64");
-      const defaultPassword = crypto.randomBytes(18).toString("base64");
       users = {
-        admin: {
+        [defaultUsername]: {
           role: "admin",
           salt,
           shadow: this.hashPassword(defaultPassword, salt),
           defaultPasswd: defaultPassword,
+          createdAt: Date.now(),
         },
       };
+      defaultAdmin = { username: defaultUsername, password: defaultPassword };
       await fs.mkdir(path.dirname(usersPath), { recursive: true });
       await fs.writeFile(usersPath, `${JSON.stringify(users, null, 2)}
 `);
-      this.app.logger.warn("首次启动管理员密码：%s", defaultPassword);
+      const message = `默认管理员账号已生成：username=${defaultUsername} password=${defaultPassword}`;
+      console.warn(message);
+      this.app.logger.warn(message);
     }
 
-    this.app.runtimeConfig = runtimeConfig;
+    this.app.runtimeConfig = {
+      ...runtimeConfig,
+      defaultAdmin,
+    };
     this.app.users = users;
     this.app.usersPath = usersPath;
   }
