@@ -1,5 +1,5 @@
 import global from '../../../../global.js';
-import sources from '../../../../global/config/source.category.js';
+import { DirSource } from '../../../../global/source/Dir.source.mjs';
 import { runSuiteModule } from '../../utils/runModule/runModule.js';
 import path from 'path';
 import fs from 'fs/promises';
@@ -11,8 +11,11 @@ import config from '../../utils/config.js';
 
 const execFileAsync = promisify(execFile);
 
-// suite source
-export const dirSource = sources['/custom/func'].source;
+// Only suite metadata is indexed at startup; lifecycle code is never scanned.
+export const dirSource = new DirSource({
+  dirPath: path.resolve(import.meta.dirname, '../../../custom/func'),
+  dirBlackList: ['node_modules', '.git', '.vscode'],
+});
 
 // simple validators
 export const isValidSuiteName = (name) => /^[a-zA-Z0-9_-]+$/.test(name);
